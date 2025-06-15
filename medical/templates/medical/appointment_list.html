@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion des Rendez-vous</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            font-size: 0.8rem;
+            padding: 0.3rem 0.6rem;
+        }
+        .appointment-card {
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        .appointment-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .status-pending { border-left-color: #ffc107; }
+        .status-confirmed { border-left-color: #28a745; }
+        .status-cancelled { border-left-color: #dc3545; }
+        .status-completed { border-left-color: #007bff; }
+        .status-no_show { border-left-color: #6c757d; }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'core:home' %}">
+                <i class="fas fa-calendar-alt me-2"></i>Gestion Rendez-vous
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- En-tête avec statistiques pour les médecins -->
+        {% if user.role == 'doctor' and stats %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card text-center">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.today_count }}</h3>
+                        <p class="card-text">Aujourd'hui</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-warning text-center">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.pending_count }}</h3>
+                        <p class="card-text">En attente</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-success text-white text-center">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.confirmed_count }}</h3>
+                        <p class="card-text">Confirmés</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-info text-white text-center">
+                    <div class="card-body">
+                        <h3 class="card-title">{{ stats.total_week }}</h3>
+                        <p class="card-text">Cette semaine</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Filtres et recherche -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtres et Actions
+                </h5>
+                {% if user.role == 'doctor' %}
+                <div>
+                    <a href="{% url 'medical:appointment_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Nouveau RDV
+                    </a>
+                    <a href="{% url 'medical:doctor_schedule' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar me-1"></i>Mon Planning
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Statut</label>
+                        <select name="status" class="form-select">
+                            <option value="">Tous les statuts</option>
+                            {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Période</label>
+                        <select name="date" class="form-select">
+                            <option value="">Toutes les dates</option>
+                            <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Aujourd'hui</option>
+                            <option value="week" {% if date_filter == 'week' %}selected{% endif %}>Cette semaine</option>
+                            <option value="month" {% if date_filter == 'month' %}selected{% endif %}>Ce mois</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Recherche</label>
+                        <input type="text" name="search" class="form-control" 
+                               placeholder="Patient, médecin, motif..." value="{{ search_query }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn btn-outline-primary d-block w-100">
+                            <i class="fas fa-search me-1"></i>Filtrer
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Actions en lot pour les médecins -->
+        {% if user.role == 'doctor' %}
+        <div class="card mb-4" id="bulk-actions" style="display: none;">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <span class="me-3">
+                        <span id="selected-count">0</span> rendez-vous sélectionnés
+                    </span>
+                    <button type="button" class="btn btn-success btn-sm me-2" onclick="bulkAction('confirm_all')">
+                        <i class="fas fa-check me-1"></i>Confirmer tout
+                    </button>
+                    <button type="button" class="btn btn-danger btn-sm me-2" onclick="bulkAction('cancel_all')">
+                        <i class="fas fa-times me-1"></i>Annuler tout
+                    </button>
+                    <button type="button" class="btn btn-warning btn-sm" onclick="bulkAction('pending_all')">
+                        <i class="fas fa-clock me-1"></i>Remettre en attente
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Liste des rendez-vous -->
+        <div class="row">
+            {% for appointment in page_obj %}
+            <div class="col-md-6 mb-3">
+                <div class="card appointment-card status-{{ appointment.status }}">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if user.role == 'doctor' %}
+                            <input type="checkbox" class="form-check-input me-2 appointment-checkbox" 
+                                   value="{{ appointment.id }}" onchange="updateBulkActions()">
+                            {% endif %}
+                            <strong>{{ appointment.patient.name }}</strong>
+                        </div>
+                        <span class="badge status-badge
+                            {% if appointment.status == 'pending' %}bg-warning text-dark
+                            {% elif appointment.status == 'confirmed' %}bg-success
+                            {% elif appointment.status == 'cancelled' %}bg-danger
+                            {% elif appointment.status == 'completed' %}bg-primary
+                            {% elif appointment.status == 'no_show' %}bg-secondary
+                            {% endif %}">
+                            {{ appointment.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-6">
+                                <small class="text-muted">Date & Heure</small>
+                                <p class="mb-1">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ appointment.appointment_date|date:"d/m/Y" }}
+                                </p>
+                                <p class="mb-2">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ appointment.appointment_time|time:"H:i" }}
+                                </p>
+                            </div>
+                            <div class="col-6">
+                                {% if user.role != 'doctor' %}
+                                <small class="text-muted">Médecin</small>
+                                <p class="mb-2">Dr. {{ appointment.doctor.get_full_name }}</p>
+                                {% endif %}
+                                <small class="text-muted">Type</small>
+                                <p class="mb-2">{{ appointment.get_appointment_type_display }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-2">
+                            <small class="text-muted">Motif</small>
+                            <p class="mb-0">{{ appointment.reason|truncatechars:100 }}</p>
+                        </div>
+
+                        <!-- Actions selon le rôle -->
+                        {% if user.role == 'doctor' and appointment.doctor == user %}
+                        <div class="mt-3 d-flex gap-2">
+                            {% if appointment.status == 'pending' %}
+                            <button class="btn btn-success btn-sm" 
+                                    onclick="updateStatus('{{ appointment.id }}', 'confirmed')">
+                                <i class="fas fa-check me-1"></i>Accepter
+                            </button>
+                            <button class="btn btn-danger btn-sm" 
+                                    onclick="updateStatus('{{ appointment.id }}', 'cancelled')">
+                                <i class="fas fa-times me-1"></i>Refuser
+                            </button>
+                            {% elif appointment.status == 'confirmed' %}
+                            <button class="btn btn-primary btn-sm" 
+                                    onclick="updateStatus('{{ appointment.id }}', 'completed')">
+                                <i class="fas fa-check-circle me-1"></i>Terminé
+                            </button>
+                            <button class="btn btn-secondary btn-sm" 
+                                    onclick="updateStatus('{{ appointment.id }}', 'no_show')">
+                                <i class="fas fa-user-times me-1"></i>Absent
+                            </button>
+                            <button class="btn btn-outline-danger btn-sm" 
+                                    onclick="updateStatus('{{ appointment.id }}', 'cancelled')">
+                                <i class="fas fa-ban me-1"></i>Annuler
+                            </button>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="mt-2">
+                            <a href="{% url 'medical:appointment_detail' appointment.id %}" 
+                               class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-eye me-1"></i>Détails
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-times fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun rendez-vous trouvé</h5>
+                    {% if user.role == 'doctor' %}
+                    <a href="{% url 'medical:appointment_create' %}" class="btn btn-primary mt-2">
+                        Créer un nouveau rendez-vous
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Navigation des pages">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Première</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Précédente</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Suivante</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if status_filter %}&status={{ status_filter }}{% endif %}{% if date_filter %}&date={{ date_filter }}{% endif %}{% if search_query %}&search={{ search_query }}{% endif %}">Dernière</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <!-- Toast pour les notifications -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="notification-toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-message"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('notification-toast');
+            const toastBody = document.getElementById('toast-message');
+            const toastHeader = toast.querySelector('.toast-header');
+            
+            toastBody.textContent = message;
+            toastHeader.className = `toast-header ${isSuccess ? 'bg-success text-white' : 'bg-danger text-white'}`;
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+
+        function updateStatus(appointmentId, newStatus) {
+            if (!confirm('Êtes-vous sûr de vouloir modifier ce rendez-vous ?')) {
+                return;
+            }
+
+            fetch(`/medical/appointments/${appointmentId}/update-status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    status: newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, true);
+                    // Recharger la page après un court délai
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.error, false);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur lors de la mise à jour', false);
+            });
+        }
+
+        // Gestion des actions en lot
+        function updateBulkActions() {
+            const checkboxes = document.querySelectorAll('.appointment-checkbox:checked');
+            const bulkActions = document.getElementById('bulk-actions');
+            const selectedCount = document.getElementById('selected-count');
+            
+            if (checkboxes.length > 0) {
+                bulkActions.style.display = 'block';
+                selectedCount.textContent = checkboxes.length;
+            } else {
+                bulkActions.style.display = 'none';
+            }
+        }
+
+        function bulkAction(action) {
+            const checkboxes = document.querySelectorAll('.appointment-checkbox:checked');
+            const appointmentIds = Array.from(checkboxes).map(cb => cb.value);
+            
+            if (appointmentIds.length === 0) {
+                showToast('Aucun rendez-vous sélectionné', false);
+                return;
+            }
+
+            if (!confirm(`Êtes-vous sûr de vouloir appliquer cette action à ${appointmentIds.length} rendez-vous ?`)) {
+                return;
+            }
+
+            fetch('/medical/appointments/quick-actions/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    appointment_ids: appointmentIds,
+                    action: action
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, true);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.error, false);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur lors de l\'action en lot', false);
+            });
+        }
+
+        // Sélectionner/désélectionner tout
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ajouter un bouton "Tout sélectionner" si il y a des checkboxes
+            const checkboxes = document.querySelectorAll('.appointment-checkbox');
+            if (checkboxes.length > 0) {
+                const filterCard = document.querySelector('.card-body');
+                const selectAllBtn = document.createElement('button');
+                selectAllBtn.type = 'button';
+                selectAllBtn.className = 'btn btn-outline-secondary btn-sm';
+                selectAllBtn.innerHTML = '<i class="fas fa-check-square me-1"></i>Tout sélectionner';
+                selectAllBtn.onclick = function() {
+                    checkboxes.forEach(cb => cb.checked = true);
+                    updateBulkActions();
+                };
+                
+                const row = filterCard.querySelector('.row');
+                const newCol = document.createElement('div');
+                newCol.className = 'col-md-12 mt-2';
+                newCol.appendChild(selectAllBtn);
+                row.appendChild(newCol);
+            }
+        });
+    </script>
+</body>
+</html>

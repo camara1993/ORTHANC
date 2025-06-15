@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détail du Rendez-vous</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .status-badge {
+            font-size: 1rem;
+            padding: 0.5rem 1rem;
+        }
+        .info-card {
+            border-left: 4px solid #007bff;
+        }
+        .appointment-timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+        .appointment-timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #dee2e6;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -0.5rem;
+            top: 0.5rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #007bff;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'medical:appointment_list' %}">
+                <i class="fas fa-arrow-left me-2"></i>Retour aux rendez-vous
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Informations principales -->
+                <div class="card info-card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calendar-alt me-2"></i>
+                            Rendez-vous avec {{ appointment.patient.name }}
+                        </h5>
+                        <span class="badge status-badge
+                            {% if appointment.status == 'pending' %}bg-warning text-dark
+                            {% elif appointment.status == 'confirmed' %}bg-success
+                            {% elif appointment.status == 'cancelled' %}bg-danger
+                            {% elif appointment.status == 'completed' %}bg-primary
+                            {% elif appointment.status == 'no_show' %}bg-secondary
+                            {% endif %}">
+                            {{ appointment.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-user me-2"></i>Informations Patient</h6>
+                                <p><strong>Nom:</strong> {{ appointment.patient.name }}</p>
+                                <p><strong>ID Patient:</strong> {{ appointment.patient.patient_id }}</p>
+                                {% if appointment.patient.birth_date %}
+                                <p><strong>Date de naissance:</strong> {{ appointment.patient.birth_date|date:"d/m/Y" }}</p>
+                                {% endif %}
+                                {% if appointment.patient.sex %}
+                                <p><strong>Sexe:</strong> {{ appointment.patient.sex }}</p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6><i class="fas fa-user-md me-2"></i>Informations Médecin</h6>
+                                <p><strong>Médecin:</strong> Dr. {{ appointment.doctor.get_full_name }}</p>
+                                {% if appointment.doctor.specialization %}
+                                <p><strong>Spécialisation:</strong> {{ appointment.doctor.specialization }}</p>
+                                {% endif %}
+                                {% if appointment.doctor.email %}
+                                <p><strong>Email:</strong> {{ appointment.doctor.email }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Détails du rendez-vous -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-info-circle me-2"></i>Détails du Rendez-vous</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong><i class="fas fa-calendar me-2"></i>Date:</strong> 
+                                   {{ appointment.appointment_date|date:"d/m/Y" }}</p>
+                                <p><strong><i class="fas fa-clock me-2"></i>Heure:</strong> 
+                                   {{ appointment.appointment_time|time:"H:i" }}</p>
+                                <p><strong><i class="fas fa-hourglass-half me-2"></i>Durée:</strong> 
+                                   {{ appointment.duration_minutes }} minutes</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong><i class="fas fa-tags me-2"></i>Type:</strong> 
+                                   {{ appointment.get_appointment_type_display }}</p>
+                                <p><strong><i class="fas fa-plus-circle me-2"></i>Créé par:</strong> 
+                                   {% if appointment.created_by %}{{ appointment.created_by.get_full_name }}{% else %}Système{% endif %}</p>
+                                <p><strong><i class="fas fa-calendar-plus me-2"></i>Créé le:</strong> 
+                                   {{ appointment.created_at|date:"d/m/Y H:i" }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <h6><i class="fas fa-stethoscope me-2"></i>Motif de consultation</h6>
+                            <p class="border p-3 bg-light rounded">{{ appointment.reason }}</p>
+                        </div>
+
+                        {% if appointment.notes %}
+                        <div class="mt-3">
+                            <h6><i class="fas fa-notes-medical me-2"></i>Notes</h6>
+                            <p class="border p-3 bg-light rounded">{{ appointment.notes }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Actions pour les médecins -->
+                {% if user.role == 'doctor' and appointment.doctor == user %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-tools me-2"></i>Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap gap-2">
+                            {% if appointment.status == 'pending' %}
+                            <button class="btn btn-success" onclick="updateStatus('confirmed')">
+                                <i class="fas fa-check me-1"></i>Accepter le rendez-vous
+                            </button>
+                            <button class="btn btn-danger" onclick="updateStatus('cancelled')">
+                                <i class="fas fa-times me-1"></i>Refuser le rendez-vous
+                            </button>
+                            {% elif appointment.status == 'confirmed' %}
+                            <button class="btn btn-primary" onclick="updateStatus('completed')">
+                                <i class="fas fa-check-circle me-1"></i>Marquer comme terminé
+                            </button>
+                            <button class="btn btn-secondary" onclick="updateStatus('no_show')">
+                                <i class="fas fa-user-times me-1"></i>Patient absent
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="updateStatus('cancelled')">
+                                <i class="fas fa-ban me-1"></i>Annuler
+                            </button>
+                            {% elif appointment.status == 'cancelled' or appointment.status == 'completed' %}
+                            <button class="btn btn-warning" onclick="updateStatus('pending')">
+                                <i class="fas fa-undo me-1"></i>Remettre en attente
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <!-- Formulaire pour ajouter des notes -->
+                        <div class="mt-3">
+                            <label for="appointment-notes" class="form-label">Ajouter/Modifier des notes :</label>
+                            <textarea id="appointment-notes" class="form-control" rows="3" 
+                                      placeholder="Notes sur le rendez-vous...">{{ appointment.notes }}</textarea>
+                            <button type="button" class="btn btn-outline-primary mt-2" onclick="updateNotes()">
+                                <i class="fas fa-save me-1"></i>Sauvegarder les notes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-md-4">
+                <!-- Informations complémentaires -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6><i class="fas fa-history me-2"></i>Historique</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="appointment-timeline">
+                            <div class="timeline-item">
+                                <strong>Rendez-vous créé</strong>
+                                <br><small class="text-muted">{{ appointment.created_at|date:"d/m/Y H:i" }}</small>
+                                {% if appointment.created_by %}
+                                <br><small>Par {{ appointment.created_by.get_full_name }}</small>
+                                {% endif %}
+                            </div>
+                            {% if appointment.updated_at != appointment.created_at %}
+                            <div class="timeline-item">
+                                <strong>Dernière modification</strong>
+                                <br><small class="text-muted">{{ appointment.updated_at|date:"d/m/Y H:i" }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Autres rendez-vous du patient -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6><i class="fas fa-calendar-week me-2"></i>Autres RDV du patient</h6>
+                    </div>
+                    <div class="card-body">
+                        {% for other_appointment in appointment.patient.appointments.all|slice:":5" %}
+                        {% if other_appointment.id != appointment.id %}
+                        <div class="border-bottom pb-2 mb-2">
+                            <strong>{{ other_appointment.appointment_date|date:"d/m/Y" }}</strong>
+                            <br><small>Dr. {{ other_appointment.doctor.get_full_name }}</small>
+                            <br><span class="badge badge-sm bg-secondary">{{ other_appointment.get_status_display }}</span>
+                        </div>
+                        {% endif %}
+                        {% empty %}
+                        <p class="text-muted">Aucun autre rendez-vous</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast pour les notifications -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="notification-toast" class="toast" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">Notification</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body" id="toast-message"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function showToast(message, isSuccess = true) {
+            const toast = document.getElementById('notification-toast');
+            const toastBody = document.getElementById('toast-message');
+            const toastHeader = toast.querySelector('.toast-header');
+            
+            toastBody.textContent = message;
+            toastHeader.className = `toast-header ${isSuccess ? 'bg-success text-white' : 'bg-danger text-white'}`;
+            
+            const bsToast = new bootstrap.Toast(toast);
+            bsToast.show();
+        }
+
+        function updateStatus(newStatus) {
+            if (!confirm('Êtes-vous sûr de vouloir modifier le statut de ce rendez-vous ?')) {
+                return;
+            }
+
+            fetch(`/medical/appointments/{{ appointment.id }}/update-status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    status: newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message, true);
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
+                } else {
+                    showToast(data.error, false);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur lors de la mise à jour', false);
+            });
+        }
+
+        function updateNotes() {
+            const notes = document.getElementById('appointment-notes').value;
+
+            fetch(`/medical/appointments/{{ appointment.id }}/update-status/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    status: '{{ appointment.status }}',
+                    notes: notes
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Notes sauvegardées avec succès', true);
+                } else {
+                    showToast(data.error, false);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur:', error);
+                showToast('Erreur lors de la sauvegarde', false);
+            });
+        }
+    </script>
+</body>
+</html>

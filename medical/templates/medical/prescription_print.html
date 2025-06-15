@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ordonnance - {{ prescription.patient.name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        .header {
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .doctor-info {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .doctor-info h2 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        
+        .prescription-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        
+        .patient-info h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .medications {
+            margin-top: 30px;
+        }
+        
+        .medications h4 {
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .medication-item {
+            margin-bottom: 20px;
+            padding-left: 20px;
+        }
+        
+        .medication-name {
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .notes {
+            margin-top: 40px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #2c3e50;
+        }
+        
+        .footer {
+            margin-top: 60px;
+            text-align: right;
+        }
+        
+        .signature {
+            margin-top: 40px;
+            border-top: 1px solid #333;
+            width: 250px;
+            display: inline-block;
+            text-align: center;
+            padding-top: 10px;
+        }
+        
+        @media print {
+            body {
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="doctor-info">
+            <h2>Dr. {{ prescription.doctor.get_full_name }}</h2>
+            {% if prescription.doctor.specialization %}
+                <p>{{ prescription.doctor.specialization }}</p>
+            {% endif %}
+            {% if prescription.doctor.license_number %}
+                <p>N° Ordre: {{ prescription.doctor.license_number }}</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="prescription-info">
+        <div class="patient-info">
+            <h3>Patient</h3>
+            <p>
+                <strong>{{ prescription.patient.name }}</strong><br>
+                {% if prescription.patient.birth_date %}
+                    Né(e) le: {{ prescription.patient.birth_date|date:"d/m/Y" }}<br>
+                {% endif %}
+                {% if prescription.patient.patient_id %}
+                    ID: {{ prescription.patient.patient_id }}
+                {% endif %}
+            </p>
+        </div>
+        
+        <div class="date-info">
+            <p>
+                <strong>Date:</strong> {{ prescription.created_at|date:"d/m/Y" }}<br>
+                <strong>Valide jusqu'au:</strong> {{ prescription.valid_until|date:"d/m/Y" }}
+            </p>
+        </div>
+    </div>
+    
+    <div class="medications">
+        <h4>Prescription</h4>
+        {% for item in prescription.items.all %}
+            <div class="medication-item">
+                <div class="medication-name">
+                    {{ forloop.counter }}. {{ item.medication_name }} - {{ item.dosage }}
+                </div>
+                <div>
+                    {{ item.get_frequency_display }} pendant {{ item.duration }}<br>
+                    Quantité: {{ item.quantity }}
+                    {% if item.instructions %}
+                        <br><em>{{ item.instructions }}</em>
+                    {% endif %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if prescription.notes %}
+        <div class="notes">
+            <strong>Notes:</strong><br>
+            {{ prescription.notes|linebreaks }}
+        </div>
+    {% endif %}
+    
+    <div class="footer">
+        <div class="signature">
+            Signature du médecin
+        </div>
+    </div>
+    
+    <script>
+        window.onload = function() {
+            window.print();
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends 'core/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Connexion - Orthanc Client{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card fade-in">
+        <div class="auth-header">
+            <i class="bi bi-hospital fs-1 mb-3"></i>
+            <h3 class="mb-0">Connexion</h3>
+            <p class="mb-0 mt-2 opacity-75">Accédez à votre espace</p>
+        </div>
+        
+        <div class="auth-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.username.label }}</label>
+                    {{ form.username }}
+                    {% if form.username.errors %}
+                        <div class="text-danger small mt-1">{{ form.username.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">{{ form.password.label }}</label>
+                    {{ form.password }}
+                    {% if form.password.errors %}
+                        <div class="text-danger small mt-1">{{ form.password.errors.0 }}</div>
+                    {% endif %}
+                </div>
+                
+                {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors.0 }}
+                    </div>
+                {% endif %}
+                
+                <button type="submit" class="btn btn-primary w-100 mb-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Se connecter
+                </button>
+                
+                <div class="text-center">
+                    <p class="mb-0">Pas encore de compte ?</p>
+                    <a href="{% url 'accounts:register' %}" class="text-decoration-none">Créer un compte</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,225 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Journal des accès - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .filter-card {
+        background-color: #f8f9fa;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .log-table td {
+        vertical-align: middle;
+    }
+    
+    .action-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .action-view {
+        background-color: #e3f2fd;
+        color: #1565c0;
+    }
+    
+    .action-create {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+    
+    .action-update {
+        background-color: #fff3e0;
+        color: #ef6c00;
+    }
+    
+    .action-delete {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2 class="mb-0">
+                <i class="bi bi-journal-text me-2"></i>Journal des accès
+            </h2>
+            <p class="text-muted">{{ total_logs }} entrée{{ total_logs|pluralize }}</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <button class="btn btn-primary" onclick="exportLogs()">
+                <i class="bi bi-download me-2"></i>Exporter
+            </button>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="filter-card">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Utilisateur</label>
+                <select class="form-select" name="user">
+                    <option value="">Tous les utilisateurs</option>
+                    {% for user in users_list %}
+                        <option value="{{ user.id }}" {% if user_filter == user.id|stringformat:"s" %}selected{% endif %}>
+                            {{ user.get_full_name|default:user.username }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Action</label>
+                <select class="form-select" name="action">
+                    <option value="">Toutes les actions</option>
+                    {% for action in actions %}
+                        <option value="{{ action }}" {% if action_filter == action %}selected{% endif %}>
+                            {{ action }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date début</label>
+                <input type="date" class="form-control" name="date_from" value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Date fin</label>
+                <input type="date" class="form-control" name="date_to" value="{{ date_to }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-funnel me-2"></i>Filtrer
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Table des logs -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover log-table">
+                    <thead>
+                        <tr>
+                            <th>Date/Heure</th>
+                            <th>Utilisateur</th>
+                            <th>Action</th>
+                            <th>Patient</th>
+                            <th>Étude</th>
+                            <th>IP</th>
+                            <th>Détails</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in page_obj %}
+                            <tr>
+                                <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                                <td>
+                                    <a href="{% url 'administration:user_detail' log.user.id %}">
+                                        {{ log.user.get_full_name|default:log.user.username }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="action-badge action-{{ log.action|slice:":6" }}">
+                                        {{ log.action }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if log.patient %}
+                                        <a href="{% url 'dicom_viewer:patient_detail' log.patient.id %}">
+                                            {{ log.patient.name }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if log.study %}
+                                        <a href="{% url 'dicom_viewer:study_detail' log.study.id %}">
+                                            {{ log.study.study_description|default:"Sans description"|truncatechars:30 }}
+                                        </a>
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.ip_address }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" 
+                                            onclick="showDetails('{{ log.id }}')">
+                                        <i class="bi bi-eye"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    Aucun log trouvé
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ request.GET.urlencode }}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&{{ request.GET.urlencode }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ request.GET.urlencode }}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showDetails(logId) {
+    // Implémenter l'affichage des détails
+    console.log('Afficher les détails du log:', logId);
+}
+
+function exportLogs() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.location.href = '?' + params.toString();
+}
+</script>
+{% endblock %}

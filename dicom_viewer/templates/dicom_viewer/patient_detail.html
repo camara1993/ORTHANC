@@ -1,0 +1,221 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ patient.name }} - Orthanc Client{% endblock %}
+
+{% block extra_css %}
+<style>
+    .study-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .study-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    
+    .modality-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+    }
+    
+    .info-item {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+    
+    .info-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: #333;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'dicom_viewer:patient_list' %}">Patients</a>
+            </li>
+            <li class="breadcrumb-item active">{{ patient.name }}</li>
+        </ol>
+    </nav>
+    
+    <!-- Patient Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <div class="patient-avatar me-3" style="width: 80px; height: 80px; font-size: 2rem;">
+                            {{ patient.name|slice:":2"|upper }}
+                        </div>
+                        <div>
+                            <h3 class="mb-1">{{ patient.name }}</h3>
+                            <p class="text-muted mb-0">ID Patient: {{ patient.patient_id }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <button class="btn btn-primary" onclick="syncPatient('{{ patient.id }}')">
+                        <i class="bi bi-arrow-clockwise me-2"></i>Synchroniser
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Informations patient -->
+            <div class="info-grid mt-4">
+                {% if patient.birth_date %}
+                    <div class="info-item">
+                        <div class="info-label">Date de naissance</div>
+                        <div class="info-value">{{ patient.birth_date|date:"d/m/Y" }}</div>
+                    </div>
+                {% endif %}
+                
+                {% if patient.sex %}
+                    <div class="info-item">
+                        <div class="info-label">Sexe</div>
+                        <div class="info-value">
+                            <i class="bi bi-gender-{% if patient.sex|upper == 'M' %}male{% elif patient.sex|upper == 'F' %}female{% else %}ambiguous{% endif %} me-1"></i>
+                            {{ patient.get_sex_display }}
+                        </div>
+                    </div>
+                {% endif %}
+                
+                <div class="info-item">
+                    <div class="info-label">Nombre d'études</div>
+                    <div class="info-value">{{ studies.count }}</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Dernière mise à jour</div>
+                    <div class="info-value">{{ patient.updated_at|date:"d/m/Y H:i" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Liste des études -->
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-3">
+                <i class="bi bi-folder-fill me-2"></i>
+                Études ({{ studies.count }})
+            </h4>
+        </div>
+    </div>
+    
+    <div class="row g-3">
+        {% for study in studies %}
+            <div class="col-12">
+                <div class="card study-card" onclick="window.location.href='{% url 'dicom_viewer:study_detail' study.id %}'">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-2">
+                                    {% if study.study_description %}
+                                        {{ study.study_description }}
+                                    {% else %}
+                                        Étude sans description
+                                    {% endif %}
+                                </h5>
+                                
+                                <div class="d-flex flex-wrap gap-2 mb-2">
+                                    {% for series in study.series.all %}
+                                        <span class="modality-badge">{{ series.modality }}</span>
+                                    {% endfor %}
+                                </div>
+                                
+                                <p class="text-muted mb-0">
+                                    <i class="bi bi-calendar me-1"></i>
+                                    {{ study.study_date|date:"d/m/Y" }}
+                                    {% if study.study_time %}
+                                        à {{ study.study_time|time:"H:i" }}
+                                    {% endif %}
+                                    
+                                    {% if study.referring_physician %}
+                                        <span class="ms-3">
+                                            <i class="bi bi-person me-1"></i>
+                                            Dr. {{ study.referring_physician }}
+                                        </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                <div class="text-muted mb-2">
+                                    <i class="bi bi-collection me-1"></i>
+                                    {{ study.series_count }} série{{ study.series_count|pluralize }}
+                                </div>
+                                <div class="text-muted">
+                                    <i class="bi bi-images me-1"></i>
+                                    {{ study.instance_count }} image{{ study.instance_count|pluralize }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Aucune étude trouvée pour ce patient.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function syncPatient(patientId) {
+    showSpinner();
+    
+    fetch(`/viewer/patients/${patientId}/sync/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideSpinner();
+        if (data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Erreur: ' + data.message);
+        }
+    })
+    .catch(error => {
+        hideSpinner();
+        alert('Erreur de synchronisation');
+    });
+}
+</script>
+{% endblock %}

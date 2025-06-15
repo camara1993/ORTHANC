@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer un Rendez-vous</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .form-card {
+            border-left: 4px solid #007bff;
+        }
+        .patient-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .patient-card:hover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        .patient-card.selected {
+            border-color: #007bff;
+            background-color: #e7f3ff;
+        }
+        .time-slot {
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .time-slot:hover {
+            background-color: #e7f3ff;
+            border-color: #007bff;
+        }
+        .time-slot.selected {
+            background-color: #007bff;
+            color: white;
+        }
+        .time-slot.unavailable {
+            background-color: #f8d7da;
+            color: #721c24;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'medical:appointment_list' %}">
+                <i class="fas fa-arrow-left me-2"></i>Retour aux rendez-vous
+            </a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row justify-content-center">
+            <div class="col-md-10">
+                <div class="card form-card">
+                    <div class="card-header">
+                        <h4 class="mb-0">
+                            <i class="fas fa-calendar-plus me-2"></i>
+                            Créer un nouveau rendez-vous
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" id="appointment-form">
+                            {% csrf_token %}
+                            
+                            <div class="row">
+                                <!-- Sélection du patient -->
+                                <div class="col-md-6">
+                                    <div class="mb-4">
+                                        <label class="form-label">
+                                            <i class="fas fa-user me-1"></i>Sélectionner un patient *
+                                        </label>
+                                        <div class="mb-2">
+                                            <input type="text" id="patient-search" class="form-control" 
+                                                   placeholder="Rechercher un patient...">
+                                        </div>
+                                        <div id="patient-list" style="max-height: 300px; overflow-y: auto;">
+                                            {% for patient in patients %}
+                                            <div class="patient-card p-2 mb-2" onclick="selectPatient('{{ patient.id }}', '{{ patient.name }}')">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong>{{ patient.name }}</strong>
+                                                        <br><small class="text-muted">ID: {{ patient.patient_id }}</small>
+                                                        {% if patient.birth_date %}
+                                                        <br><small class="text-muted">
+                                                            Né(e) le {{ patient.birth_date|date:"d/m/Y" }}
+                                                            {% if patient.get_age %}({{ patient.get_age }} ans){% endif %}
+                                                        </small>
+                                                        {% endif %}
+                                                    </div>
+                                                    <i class="fas fa-check-circle text-success" style="display: none;"></i>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                        <input type="hidden" name="patient_id" id="selected-patient-id" required>
+                                    </div>
+                                </div>
+
+                                <!-- Informations du rendez-vous -->
+                                <div class="col-md-6">
+                                    <!-- Date -->
+                                    <div class="mb-3">
+                                        <label for="appointment_date" class="form-label">
+                                            <i class="fas fa-calendar me-1"></i>Date du rendez-vous *
+                                        </label>
+                                        <input type="date" class="form-control" name="appointment_date" 
+                                               id="appointment_date" min="{{ today|date:'Y-m-d' }}" required>
+                                    </div>
+
+                                    <!-- Heure -->
+                                    <div class="mb-3">
+                                        <label class="form-label">
+                                            <i class="fas fa-clock me-1"></i>Heure du rendez-vous *
+                                        </label>
+                                        <div id="time-slots" class="d-flex flex-wrap">
+                                            <!-- Les créneaux horaires seront générés par JavaScript -->
+                                        </div>
+                                        <input type="hidden" name="appointment_time" id="selected-time" required>
+                                    </div>
+
+                                    <!-- Type de rendez-vous -->
+                                    <div class="mb-3">
+                                        <label for="appointment_type" class="form-label">
+                                            <i class="fas fa-tags me-1"></i>Type de rendez-vous
+                                        </label>
+                                        <select class="form-select" name="appointment_type" id="appointment_type">
+                                            {% for value, label in appointment_types %}
+                                            <option value="{{ value }}" {% if value == 'consultation' %}selected{% endif %}>
+                                                {{ label }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+
+                                    <!-- Durée -->
+                                    <div class="mb-3">
+                                        <label for="duration_minutes" class="form-label">
+                                            <i class="fas fa-hourglass-half me-1"></i>Durée (minutes)
+                                        </label>
+                                        <select class="form-select" name="duration_minutes" id="duration_minutes">
+                                            <option value="15">15 minutes</option>
+                                            <option value="30" selected>30 minutes</option>
+                                            <option value="45">45 minutes</option>
+                                            <option value="60">1 heure</option>
+                                            <option value="90">1h30</option>
+                                            <option value="120">2 heures</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Médecin (si admin) -->
+                                    {% if user.role == 'admin' %}
+                                    <div class="mb-3">
+                                        <label for="doctor_id" class="form-label">
+                                            <i class="fas fa-user-md me-1"></i>Médecin
+                                        </label>
+                                        <select class="form-select" name="doctor_id" id="doctor_id">
+                                            {% for doctor in doctors %}
+                                            <option value="{{ doctor.id }}">
+                                                Dr. {{ doctor.get_full_name }}
+                                                {% if doctor.specialization %} - {{ doctor.specialization }}{% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Motif de consultation -->
+                            <div class="mb-3">
+                                <label for="reason" class="form-label">
+                                    <i class="fas fa-stethoscope me-1"></i>Motif de consultation *
+                                </label>
+                                <textarea class="form-control" name="reason" id="reason" rows="3" 
+                                          placeholder="Décrivez le motif de la consultation..." required></textarea>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="mb-4">
+                                <label for="notes" class="form-label">
+                                    <i class="fas fa-notes-medical me-1"></i>Notes (optionnel)
+                                </label>
+                                <textarea class="form-control" name="notes" id="notes" rows="2" 
+                                          placeholder="Notes additionnelles..."></textarea>
+                            </div>
+
+                            <!-- Résumé du rendez-vous -->
+                            <div id="appointment-summary" class="alert alert-info" style="display: none;">
+                                <h6><i class="fas fa-info-circle me-1"></i>Résumé du rendez-vous</h6>
+                                <div id="summary-content"></div>
+                            </div>
+
+                            <!-- Boutons -->
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'medical:appointment_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-1"></i>Annuler
+                                </a>
+                                <button type="submit" class="btn btn-primary" id="submit-btn" disabled>
+                                    <i class="fas fa-save me-1"></i>Créer le rendez-vous
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let selectedPatient = null;
+        let selectedTime = null;
+
+        // Recherche de patients
+        document.getElementById('patient-search').addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            const patientCards = document.querySelectorAll('.patient-card');
+            
+            patientCards.forEach(card => {
+                const patientName = card.querySelector('strong').textContent.toLowerCase();
+                const patientId = card.querySelector('small').textContent.toLowerCase();
+                
+                if (patientName.includes(searchTerm) || patientId.includes(searchTerm)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        });
+
+        function selectPatient(patientId, patientName) {
+            // Désélectionner tous les patients
+            document.querySelectorAll('.patient-card').forEach(card => {
+                card.classList.remove('selected');
+                card.querySelector('i').style.display = 'none';
+            });
+            
+            // Sélectionner le patient cliqué
+            event.currentTarget.classList.add('selected');
+            event.currentTarget.querySelector('i').style.display = 'block';
+            
+            selectedPatient = { id: patientId, name: patientName };
+            document.getElementById('selected-patient-id').value = patientId;
+            
+            updateSummary();
+            checkFormCompletion();
+        }
+
+        // Génération des créneaux horaires
+        function generateTimeSlots() {
+            const timeSlotsContainer = document.getElementById('time-slots');
+            timeSlotsContainer.innerHTML = '';
+            
+            const startHour = 8;
+            const endHour = 18;
+            const interval = 30; // minutes
+            
+            for (let hour = startHour; hour < endHour; hour++) {
+                for (let minute = 0; minute < 60; minute += interval) {
+                    const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+                    
+                    const timeSlot = document.createElement('div');
+                    timeSlot.className = 'time-slot';
+                    timeSlot.textContent = timeString;
+                    timeSlot.onclick = () => selectTime(timeString, timeSlot);
+                    
+                    // Vérifier si le créneau est disponible (simulation)
+                    // En production, faire un appel AJAX pour vérifier les conflits
+                    const isUnavailable = Math.random() < 0.1; // 10% de chance d'être indisponible
+                    if (isUnavailable) {
+                        timeSlot.classList.add('unavailable');
+                        timeSlot.onclick = null;
+                        timeSlot.title = 'Créneau non disponible';
+                    }
+                    
+                    timeSlotsContainer.appendChild(timeSlot);
+                }
+            }
+        }
+
+        function selectTime(timeString, element) {
+            // Désélectionner tous les créneaux
+            document.querySelectorAll('.time-slot').forEach(slot => {
+                slot.classList.remove('selected');
+            });
+            
+            // Sélectionner le créneau cliqué
+            element.classList.add('selected');
+            selectedTime = timeString;
+            document.getElementById('selected-time').value = timeString;
+            
+            updateSummary();
+            checkFormCompletion();
+        }
+
+        function updateSummary() {
+            if (!selectedPatient || !selectedTime) return;
+            
+            const date = document.getElementById('appointment_date').value;
+            const appointmentType = document.getElementById('appointment_type');
+            const duration = document.getElementById('duration_minutes').value;
+            
+            if (!date) return;
+            
+            const summaryContent = document.getElementById('summary-content');
+            const formattedDate = new Date(date).toLocaleDateString('fr-FR');
+            
+            summaryContent.innerHTML = `
+                <strong>Patient:</strong> ${selectedPatient.name}<br>
+                <strong>Date:</strong> ${formattedDate}<br>
+                <strong>Heure:</strong> ${selectedTime}<br>
+                <strong>Type:</strong> ${appointmentType.options[appointmentType.selectedIndex].text}<br>
+                <strong>Durée:</strong> ${duration} minutes
+            `;
+            
+            document.getElementById('appointment-summary').style.display = 'block';
+        }
+
+        function checkFormCompletion() {
+            const patient = document.getElementById('selected-patient-id').value;
+            const date = document.getElementById('appointment_date').value;
+            const time = document.getElementById('selected-time').value;
+            const reason = document.getElementById('reason').value.trim();
+            
+            const submitBtn = document.getElementById('submit-btn');
+            if (patient && date && time && reason) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
+
+        // Vérifier la disponibilité lors du changement de date
+        document.getElementById('appointment_date').addEventListener('change', function() {
+            generateTimeSlots();
+            checkAvailability();
+            updateSummary();
+            checkFormCompletion();
+        });
+
+        // Vérifier la forme à chaque modification
+        document.getElementById('reason').addEventListener('input', checkFormCompletion);
+        document.getElementById('appointment_type').addEventListener('change', updateSummary);
+        document.getElementById('duration_minutes').addEventListener('change', updateSummary);
+
+        // Fonction pour vérifier la disponibilité (à implémenter côté serveur)
+        function checkAvailability() {
+            const selectedDate = document.getElementById('appointment_date').value;
+            if (!selectedDate) return;
+
+            // Ici, on ferait un appel AJAX pour vérifier les créneaux occupés
+            // fetch(`/medical/api/check-availability/?date=${selectedDate}&doctor_id=${doctorId}`)
+            // .then(response => response.json())
+            // .then(data => {
+            //     // Marquer les créneaux indisponibles
+            // });
+        }
+
+        // Validation côté client
+        document.getElementById('appointment-form').addEventListener('submit', function(e) {
+            if (!selectedPatient || !selectedTime) {
+                e.preventDefault();
+                alert('Veuillez sélectionner un patient et un créneau horaire.');
+                return false;
+            }
+            
+            const reason = document.getElementById('reason').value.trim();
+            if (!reason) {
+                e.preventDefault();
+                alert('Veuillez saisir le motif de consultation.');
+                return false;
+            }
+            
+            return true;
+        });
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Définir la date par défaut à aujourd'hui
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('appointment_date').value = today;
+            
+            // Générer les créneaux horaires
+            generateTimeSlots();
+        });
+
+        // Auto-complétion du motif selon le type de rendez-vous
+        document.getElementById('appointment_type').addEventListener('change', function() {
+            const reasonField = document.getElementById('reason');
+            const selectedType = this.value;
+            
+            if (!reasonField.value.trim()) {
+                const reasonTemplates = {
+                    'consultation': 'Consultation médicale',
+                    'followup': 'Consultation de suivi',
+                    'examination': 'Examen médical',
+                    'emergency': 'Consultation d\'urgence',
+                    'teleconsultation': 'Téléconsultation'
+                };
+                
+                if (reasonTemplates[selectedType]) {
+                    reasonField.value = reasonTemplates[selectedType];
+                    checkFormCompletion();
+                }
+            }
+        });
+
+        // Raccourcis clavier
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+S pour sauvegarder
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                const submitBtn = document.getElementById('submit-btn');
+                if (!submitBtn.disabled) {
+                    submitBtn.click();
+                }
+            }
+            
+            // Échap pour annuler
+            if (e.key === 'Escape') {
+                if (confirm('Êtes-vous sûr de vouloir annuler la création du rendez-vous ?')) {
+                    window.location.href = "{% url 'medical:appointment_list' %}";
+                }
+            }
+        });
+        document.addEventListener('DOMContentLoaded', function() {
+            const preselectedPatientId = '{{ preselected_patient.id|default:"" }}';
+            
+            if (preselectedPatientId) {
+                // Trouver et sélectionner automatiquement le patient
+                const patientCard = document.querySelector(`[onclick*="${preselectedPatientId}"]`);
+                if (patientCard) {
+                    patientCard.click();
+                }
+                
+                // Faire défiler jusqu'au patient sélectionné
+                setTimeout(() => {
+                    const selectedCard = document.querySelector('.patient-card.selected');
+                    if (selectedCard) {
+                        selectedCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+            
+            // Définir la date par défaut à aujourd'hui
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('appointment_date').value = today;
+            
+            // Générer les créneaux horaires
+            generateTimeSlots();
+        });
+    </script>
+</body>
+</html>

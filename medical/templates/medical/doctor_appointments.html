@@ -1,0 +1,106 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Mes rendez-vous - Médecin{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-calendar-week me-2"></i>Mes rendez-vous
+        </h2>
+        <a href="{% url 'medical:manage_availability' %}" class="btn btn-outline-primary">
+            <i class="bi bi-clock me-2"></i>Gérer mes disponibilités
+        </a>
+    </div>
+    
+    {% if appointments_by_date %}
+        {% for date, appointments in appointments_by_date.items %}
+            <div class="card mb-4">
+                <div class="card-header {% if date == today %}bg-primary text-white{% endif %}">
+                    <h5 class="mb-0">
+                        {{ date|date:"l d F Y" }}
+                        {% if date == today %}(Aujourd'hui){% endif %}
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 100px;">Heure</th>
+                                    <th>Patient</th>
+                                    <th>Type</th>
+                                    <th>Motif</th>
+                                    <th style="width: 120px;">Statut</th>
+                                    <th style="width: 100px;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointments %}
+                                    <tr>
+                                        <td>
+                                            {{ appointment.appointment_time|time:"H:i" }}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'dicom_viewer:patient_detail' appointment.patient.id %}">
+                                                {{ appointment.patient.name }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {{ appointment.get_appointment_type_display }}
+                                        </td>
+                                        <td>
+                                            <small>{{ appointment.reason|truncatewords:10 }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ appointment.status|status_color }}">
+                                                {{ appointment.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                {% if appointment.status == 'pending' %}
+                                                    <button class="btn btn-sm btn-success" 
+                                                            onclick="confirmAppointment('{{ appointment.id }}')">
+                                                        <i class="bi bi-check"></i>
+                                                    </button>
+                                                {% endif %}
+                                                <button class="btn btn-sm btn-info" 
+                                                        onclick="viewDetails('{{ appointment.id }}')">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info text-center">
+            <i class="bi bi-calendar-x me-2"></i>
+            Aucun rendez-vous programmé.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmAppointment(appointmentId) {
+    if (confirm('Confirmer ce rendez-vous ?')) {
+        // Implémenter la confirmation via AJAX
+        console.log('Confirmer:', appointmentId);
+    }
+}
+
+function viewDetails(appointmentId) {
+    // Afficher les détails dans un modal
+    console.log('Détails:', appointmentId);
+}
+</script>
+{% endblock %}

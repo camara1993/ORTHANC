@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rendez-vous Confirmé</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #28a745; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
+        .appointment-details { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .status-confirmed { border-left: 4px solid #28a745; }
+        .btn { display: inline-block; padding: 10px 20px; background: #28a745; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }
+        .preparation { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>✅ Rendez-vous Confirmé</h2>
+        </div>
+        
+        <div class="content">
+            <p>Bonjour {{ appointment.patient.name }},</p>
+            
+            <p>Excellente nouvelle ! Votre rendez-vous a été <strong>confirmé</strong> par Dr. {{ appointment.doctor.get_full_name }}.</p>
+            
+            <div class="appointment-details status-confirmed">
+                <h3>Détails confirmés</h3>
+                <p><strong>Médecin :</strong> Dr. {{ appointment.doctor.get_full_name }}</p>
+                {% if appointment.doctor.specialization %}
+                <p><strong>Spécialisation :</strong> {{ appointment.doctor.specialization }}</p>
+                {% endif %}
+                <p><strong>Date :</strong> {{ appointment.appointment_date|date:"l d F Y" }}</p>
+                <p><strong>Heure :</strong> {{ appointment.appointment_time|time:"H:i" }}</p>
+                <p><strong>Durée :</strong> {{ appointment.duration_minutes }} minutes</p>
+                <p><strong>Type :</strong> {{ appointment.get_appointment_type_display }}</p>
+                <p><strong>Statut :</strong> <span style="color: #28a745;">✅ Confirmé</span></p>
+            </div>
+            
+            <div class="preparation">
+                <h4>📋 Préparation de votre rendez-vous</h4>
+                <ul>
+                    <li>Arrivez 15 minutes avant l'heure prévue</li>
+                    <li>Apportez votre carte d'identité et carte vitale</li>
+                    <li>Préparez la liste de vos médicaments actuels</li>
+                    <li>Notez vos questions importantes à poser au médecin</li>
+                    {% if appointment.appointment_type == 'examination' %}
+                    <li>Portez des vêtements faciles à enlever si nécessaire</li>
+                    {% endif %}
+                </ul>
+            </div>
+            
+            <div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <h4>📱 Rappel automatique</h4>
+                <p>Vous recevrez un rappel par email la veille de votre rendez-vous.</p>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="#" class="btn">Ajouter au calendrier</a>
+                <a href="#" class="btn" style="background: #dc3545;">Annuler le RDV</a>
+            </div>
+            
+            <p>En cas d'empêchement, merci de nous prévenir au moins 24h à l'avance.</p>
+            
+            <p>Nous nous réjouissons de vous accueillir,<br>L'équipe médicale</p>
+        </div>
+        
+        <div class="footer">
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

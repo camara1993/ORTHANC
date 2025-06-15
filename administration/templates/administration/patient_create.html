@@ -1,0 +1,174 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Créer un patient - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'administration:dashboard' %}">Administration</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'dicom_viewer:patient_list' %}">Patients</a></li>
+            <li class="breadcrumb-item active">Créer un patient</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-person-plus me-2"></i>Créer un nouveau patient
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="patient_id" class="form-label">ID Patient <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="patient_id" name="patient_id" 
+                                           placeholder="PAT001" required pattern="[A-Za-z0-9]+" 
+                                           title="L'ID patient ne doit contenir que des lettres et chiffres">
+                                    <div class="form-text">Identifiant unique du patient (ex: PAT001)</div>
+                                    <div class="invalid-feedback">
+                                        Veuillez entrer un ID patient valide (lettres et chiffres uniquement)
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Nom complet <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="name" name="name" 
+                                           placeholder="Jean Dupont" required>
+                                    <div class="invalid-feedback">
+                                        Le nom du patient est obligatoire
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="birth_date" class="form-label">Date de naissance</label>
+                                    <input type="date" class="form-control" id="birth_date" name="birth_date"
+                                           max="{{ today|date:'Y-m-d' }}">
+                                    <div class="form-text">Format : JJ/MM/AAAA</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="sex" class="form-label">Sexe</label>
+                                    <select class="form-select" id="sex" name="sex">
+                                        <option value="">-- Sélectionner --</option>
+                                        <option value="M">Masculin</option>
+                                        <option value="F">Féminin</option>
+                                        <option value="O">Autre</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        
+                        <h5 class="mb-3">
+                            <i class="bi bi-person-circle me-2"></i>Créer un compte utilisateur (optionnel)
+                        </h5>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="create_user_account" 
+                                   onchange="toggleUserAccount()">
+                            <label class="form-check-label" for="create_user_account">
+                                Créer un compte utilisateur pour ce patient
+                            </label>
+                        </div>
+
+                        <div id="user_account_fields" style="display: none;">
+                            <div class="bg-light p-3 rounded mb-3">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">Adresse email</label>
+                                    <input type="email" class="form-control" id="email" name="email" 
+                                           placeholder="patient@example.com">
+                                    <div class="form-text">
+                                        Un nom d'utilisateur et un mot de passe temporaire seront générés automatiquement
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Note :</strong> Ce patient sera automatiquement créé et synchronisé avec le serveur Orthanc.
+                            Une instance DICOM minimale sera créée pour initialiser le patient dans Orthanc.
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'dicom_viewer:patient_list' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Annuler
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save me-2"></i>Créer le patient
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Validation Bootstrap
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+})();
+
+// Toggle user account fields
+function toggleUserAccount() {
+    const checkbox = document.getElementById('create_user_account');
+    const fields = document.getElementById('user_account_fields');
+    const emailInput = document.getElementById('email');
+    
+    if (checkbox.checked) {
+        fields.style.display = 'block';
+        emailInput.setAttribute('required', 'required');
+    } else {
+        fields.style.display = 'none';
+        emailInput.removeAttribute('required');
+        emailInput.value = '';
+    }
+}
+
+// Auto-format Patient ID to uppercase
+document.getElementById('patient_id').addEventListener('input', function(e) {
+    e.target.value = e.target.value.toUpperCase();
+});
+</script>
+{% endblock %}

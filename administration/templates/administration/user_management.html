@@ -1,0 +1,212 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Gestion des utilisateurs - Orthanc Client{% endblock %}
+
+{% block extra_css %}
+<style>
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+    }
+    
+    .filter-card {
+        background-color: #f8f9fa;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .role-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .role-admin {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .role-doctor {
+        background-color: #007bff;
+        color: white;
+    }
+    
+    .role-patient {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+    
+    .status-active {
+        background-color: #28a745;
+    }
+    
+    .status-inactive {
+        background-color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2 class="mb-0">
+                <i class="bi bi-people-fill me-2"></i>Gestion des utilisateurs
+            </h2>
+            <p class="text-muted">{{ total_users }} utilisateur{{ total_users|pluralize }}</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <a href="{% url 'accounts:register' %}" class="btn btn-primary">
+                <i class="bi bi-person-plus me-2"></i>Nouvel utilisateur
+            </a>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="filter-card">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Rechercher</label>
+                <input type="text" class="form-control" name="search" 
+                       value="{{ search_query }}" placeholder="Nom, email, username...">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Rôle</label>
+                <select class="form-select" name="role">
+                    <option value="">Tous les rôles</option>
+                    <option value="admin" {% if role_filter == 'admin' %}selected{% endif %}>Administrateur</option>
+                    <option value="doctor" {% if role_filter == 'doctor' %}selected{% endif %}>Médecin</option>
+                    <option value="patient" {% if role_filter == 'patient' %}selected{% endif %}>Patient</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Statut</label>
+                <select class="form-select" name="status">
+                    <option value="">Tous les statuts</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Actif</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactif</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Filtrer</button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Liste des utilisateurs -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Utilisateur</th>
+                            <th>Email</th>
+                            <th>Rôle</th>
+                            <th>Statut</th>
+                            <th>Dernière connexion</th>
+                            <th>Date d'inscription</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in page_obj %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar me-3">
+                                            {{ user.first_name.0|default:user.username.0|upper }}{{ user.last_name.0|upper }}
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ user.get_full_name|default:user.username }}</div>
+                                            <small class="text-muted">@{{ user.username }}</small>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    <span class="role-badge role-{{ user.role }}">
+                                        {{ user.get_role_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="status-indicator status-{% if user.is_active %}active{% else %}inactive{% endif %}"></span>
+                                    {% if user.is_active %}Actif{% else %}Inactif{% endif %}
+                                </td>
+                                <td>{{ user.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</td>
+                                <td>{{ user.date_joined|date:"d/m/Y" }}</td>
+                                <td>
+                                    <a href="{% url 'administration:user_detail' user.id %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    Aucun utilisateur trouvé
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+        <nav aria-label="Navigation" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            <i class="bi bi-chevron-left"></i>
+                        </a>
+                    </li>
+                {% endif %}
+                
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">
+                            <i class="bi bi-chevron-right"></i>
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+</div>
+{% endblock %}

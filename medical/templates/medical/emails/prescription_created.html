@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Nouvelle ordonnance</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #4A90E2;">Nouvelle ordonnance médicale</h2>
+        
+        <p>Bonjour {{ prescription.patient.name }},</p>
+        
+        <p>Dr. {{ prescription.doctor.get_full_name }} vous a prescrit une nouvelle ordonnance.</p>
+        
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Date :</strong> {{ prescription.created_at|date:"d/m/Y" }}</p>
+            <p><strong>Valide jusqu'au :</strong> {{ prescription.valid_until|date:"d/m/Y" }}</p>
+            <p><strong>Nombre de médicaments :</strong> {{ prescription.items.count }}</p>
+        </div>
+        
+        <p>Connectez-vous à votre espace patient pour consulter et imprimer votre ordonnance.</p>
+        
+        <p style="color: #dc3545;"><strong>Important :</strong> Cette ordonnance doit être présentée à votre pharmacien avant la date d'expiration.</p>
+        
+        <p>Cordialement,<br>
+        L'équipe médicale</p>
+    </div>
+</body>
+</html>

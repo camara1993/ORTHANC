@@ -1,0 +1,258 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Monitoring Orthanc - Orthanc Client{% endblock %}
+
+{% block extra_css %}
+<style>
+    .server-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        text-align: center;
+        transition: all 0.3s ease;
+    }
+    
+    .metric-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #333;
+    }
+    
+    .metric-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        margin-top: 0.5rem;
+    }
+    
+    .disk-usage-bar {
+        height: 30px;
+        background-color: #e9ecef;
+        border-radius: 1rem;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .disk-usage-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745 0%, #ffc107 50%, #dc3545 100%);
+        transition: width 0.5s ease;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+    }
+    
+    .info-item {
+        padding: 1rem;
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2 class="mb-0">
+                <i class="bi bi-activity me-2"></i>Monitoring Orthanc
+            </h2>
+            <p class="text-muted">État et statistiques du serveur DICOM</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+            <button class="btn btn-primary" onclick="refreshStats()">
+                <i class="bi bi-arrow-clockwise me-2"></i>Actualiser
+            </button>
+        </div>
+    </div>
+    
+    {% if connected %}
+        <!-- État du serveur -->
+        <div class="server-card">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h3 class="mb-3">
+                        <i class="bi bi-check-circle me-2"></i>Serveur en ligne
+                    </h3>
+                    <div class="info-grid text-white">
+                        <div>
+                            <strong>Version:</strong> {{ system_info.Version }}
+                        </div>
+                        <div>
+                            <strong>Nom:</strong> {{ system_info.Name }}
+                        </div>
+                        <div>
+                            <strong>API Version:</strong> {{ system_info.ApiVersion }}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 text-center">
+                    <div class="display-1">
+                        <i class="bi bi-server"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Métriques principales -->
+        <div class="row g-4 mb-4">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <i class="bi bi-people-fill text-primary fs-1 mb-3"></i>
+                    <div class="metric-value">{{ statistics.CountPatients|default:0 }}</div>
+                    <div class="metric-label">Patients</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <i class="bi bi-folder-fill text-success fs-1 mb-3"></i>
+                    <div class="metric-value">{{ statistics.CountStudies|default:0 }}</div>
+                    <div class="metric-label">Études</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <i class="bi bi-collection-fill text-info fs-1 mb-3"></i>
+                    <div class="metric-value">{{ statistics.CountSeries|default:0 }}</div>
+                    <div class="metric-label">Séries</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <i class="bi bi-images text-warning fs-1 mb-3"></i>
+                    <div class="metric-value">{{ statistics.CountInstances|default:0 }}</div>
+                    <div class="metric-label">Instances</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Utilisation du disque -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-hdd-fill me-2"></i>Utilisation du disque
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center mb-3">
+                    <div class="col-md-8">
+                        <div class="disk-usage-bar">
+                            <div class="disk-usage-fill" style="width: {{ disk_usage.percent }}%"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <h4 class="mb-0">{{ disk_usage.percent|floatformat:1 }}%</h4>
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="text-muted">Utilisé</div>
+                        <div class="fw-bold">{{ disk_usage.used|floatformat:0 }} MB</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted">Libre</div>
+                        <div class="fw-bold">{{ disk_usage.free|floatformat:0 }} MB</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted">Total</div>
+                        <div class="fw-bold">{{ disk_usage.total|floatformat:0 }} MB</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Informations détaillées -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="bi bi-info-circle-fill me-2"></i>Informations détaillées
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Statistiques de stockage</h6>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Taille totale non compressée:</strong><br>
+                                {{ statistics.TotalUncompressedSizeMB|default:0|floatformat:0 }} MB
+                            </div>
+                            <div class="info-item">
+                                <strong>Taille totale sur disque:</strong><br>
+                                {{ statistics.TotalDiskSizeMB|default:0|floatformat:0 }} MB
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Configuration</h6>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <strong>Compression:</strong><br>
+                                {% if system_info.StorageCompression %}Activée{% else %}Désactivée{% endif %}
+                            </div>
+                            <div class="info-item">
+                                <strong>Base de données:</strong><br>
+                                {{ system_info.DatabaseBackendPlugin|default:"SQLite" }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    {% else %}
+        <!-- Serveur hors ligne -->
+        <div class="alert alert-danger">
+            <h4 class="alert-heading">
+                <i class="bi bi-exclamation-triangle me-2"></i>Serveur Orthanc hors ligne
+            </h4>
+            <p class="mb-0">{{ error }}</p>
+            <hr>
+            <p class="mb-0">Vérifiez que le serveur Orthanc est démarré et accessible.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshStats() {
+    showSpinner();
+    location.reload();
+}
+
+// Auto-refresh toutes les 30 secondes
+setInterval(() => {
+    fetch('/administration/api/server-status/')
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour les métriques
+            document.querySelectorAll('.metric-value').forEach((el, index) => {
+                const metrics = ['patients', 'studies', 'series', 'instances'];
+                if (data[metrics[index]]) {
+                    el.textContent = data[metrics[index]];
+                }
+            });
+        });
+}, 30000);
+</script>
+{% endblock %}

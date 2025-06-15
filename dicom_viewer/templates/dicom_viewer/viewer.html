@@ -1,0 +1,415 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Visualiseur DICOM - {{ series.series_description|default:"Sans titre" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        overflow: hidden;
+    }
+    
+    .viewer-container {
+        height: calc(100vh - 80px);
+        background-color: #000;
+        position: relative;
+    }
+    
+    .viewer-sidebar {
+        width: 300px;
+        background-color: #1a1a1a;
+        color: white;
+        height: 100%;
+        overflow-y: auto;
+        border-right: 1px solid #333;
+    }
+    
+    .viewer-main {
+        flex: 1;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .viewer-toolbar {
+        background-color: #2a2a2a;
+        padding: 1rem;
+        border-bottom: 1px solid #444;
+    }
+    
+    .viewer-canvas {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #000;
+    }
+    
+    #dicomImage {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    
+    .viewer-controls {
+        background-color: #2a2a2a;
+        padding: 1rem;
+        border-top: 1px solid #444;
+    }
+    
+    .thumbnail-list {
+        padding: 1rem;
+    }
+    
+    .thumbnail-item {
+        margin-bottom: 0.5rem;
+        padding: 0.5rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 2px solid transparent;
+    }
+    
+    .thumbnail-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .thumbnail-item.active {
+        background-color: rgba(74, 144, 226, 0.3);
+        border-color: var(--primary-color);
+    }
+    
+    .tool-btn {
+        background-color: #3a3a3a;
+        border: 1px solid #555;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+    }
+    
+    .tool-btn:hover {
+        background-color: #4a4a4a;
+        color: white;
+    }
+    
+    .tool-btn.active {
+        background-color: var(--primary-color);
+        border-color: var(--primary-color);
+    }
+    
+    .zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .zoom-level {
+        background-color: #3a3a3a;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    .image-info {
+        position: absolute;
+        top: 1rem;
+        left: 1rem;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .loading-spinner {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="viewer-container d-flex">
+    <!-- Sidebar avec les miniatures -->
+    <div class="viewer-sidebar">
+        <div class="p-3 border-bottom border-secondary">
+            <h6 class="mb-2">{{ patient.name }}</h6>
+            <p class="text-muted small mb-1">{{ study.study_description|default:"Étude" }}</p>
+            <p class="text-muted small mb-0">{{ series.series_description|default:"Série" }}</p>
+        </div>
+        
+        <div class="thumbnail-list">
+            <h6 class="text-muted mb-3">Images ({{ instance_count }})</h6>
+            {% for instance in instances %}
+                <div class="thumbnail-item {% if forloop.first %}active{% endif %}" 
+                     data-instance-id="{{ instance.orthanc_id }}"
+                     data-instance-number="{{ instance.instance_number }}">
+                    <div class="d-flex align-items-center">
+                        <img src="/viewer/api/instances/{{ instance.id }}/preview/" 
+                             class="img-thumbnail bg-dark border-secondary"
+                             style="width: 60px; height: 60px; object-fit: cover;">
+                        <div class="ms-3">
+                            <div class="fw-bold">Image {{ instance.instance_number|default:forloop.counter }}</div>
+                            <div class="text-muted small">Instance {{ forloop.counter }}/{{ instance_count }}</div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Zone principale de visualisation -->
+    <div class="viewer-main">
+        <!-- Barre d'outils -->
+        <div class="viewer-toolbar">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex gap-2">
+                    <button class="tool-btn active" id="toolPan" title="Déplacer">
+                        <i class="bi bi-arrows-move"></i> Pan
+                    </button>
+                    <button class="tool-btn" id="toolZoom" title="Zoom">
+                        <i class="bi bi-zoom-in"></i> Zoom
+                    </button>
+                    <button class="tool-btn" id="toolWindow" title="Fenêtrage">
+                        <i class="bi bi-brightness-high"></i> Fenêtrage
+                    </button>
+                    <button class="tool-btn" id="toolMeasure" title="Mesurer">
+                        <i class="bi bi-rulers"></i> Mesurer
+                    </button>
+                    <button class="tool-btn" id="toolReset" title="Réinitialiser">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </button>
+                </div>
+                
+                <div class="zoom-controls">
+                    <button class="tool-btn" onclick="zoomOut()">
+                        <i class="bi bi-zoom-out"></i>
+                    </button>
+                    <div class="zoom-level" id="zoomLevel">100%</div>
+                    <button class="tool-btn" onclick="zoomIn()">
+                        <i class="bi bi-zoom-in"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Canvas pour l'image -->
+        <div class="viewer-canvas" id="viewerCanvas">
+            <div class="loading-spinner" id="loadingSpinner">
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Chargement...</span>
+                </div>
+            </div>
+            <img id="dicomImage" style="display: none;">
+            
+            <!-- Informations sur l'image -->
+            <div class="image-info" id="imageInfo" style="display: none;">
+                <div><strong>Patient:</strong> {{ patient.name }}</div>
+                <div><strong>Date:</strong> {{ study.study_date|date:"d/m/Y" }}</div>
+                <div><strong>Modalité:</strong> {{ series.modality }}</div>
+                <div><strong>Image:</strong> <span id="currentImageNumber">1</span>/{{ instance_count }}</div>
+            </div>
+        </div>
+        
+        <!-- Contrôles de navigation -->
+        <div class="viewer-controls">
+            <div class="d-flex justify-content-center align-items-center gap-3">
+                <button class="btn btn-primary" onclick="previousImage()" {% if instance_count <= 1 %}disabled{% endif %}>
+                    <i class="bi bi-chevron-left"></i> Précédente
+                </button>
+                
+                <div class="text-white">
+                    <span id="currentImage">1</span> / {{ instance_count }}
+                </div>
+                
+                <button class="btn btn-primary" onclick="nextImage()" {% if instance_count <= 1 %}disabled{% endif %}>
+                    Suivante <i class="bi bi-chevron-right"></i>
+                </button>
+                
+                <div class="ms-auto">
+                    <button class="btn btn-success" onclick="downloadImage()">
+                        <i class="bi bi-download me-2"></i>Télécharger
+                    </button>
+                    <a href="{% url 'dicom_viewer:study_detail' study.id %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>Retour
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Variables globales
+let currentInstanceIndex = 0;
+const instances = {{ instance_ids|safe }};
+let currentZoom = 1;
+let isDragging = false;
+let startX, startY;
+let translateX = 0, translateY = 0;
+let currentTool = 'pan';
+
+// Initialisation
+document.addEventListener('DOMContentLoaded', function() {
+    loadImage(0);
+    setupEventListeners();
+});
+
+// Configuration des écouteurs d'événements
+function setupEventListeners() {
+    // Outils
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            if (this.id === 'toolReset') {
+                resetView();
+                return;
+            }
+            
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            switch(this.id) {
+                case 'toolPan': currentTool = 'pan'; break;
+                case 'toolZoom': currentTool = 'zoom'; break;
+                case 'toolWindow': currentTool = 'window'; break;
+                case 'toolMeasure': currentTool = 'measure'; break;
+            }
+        });
+    });
+    
+    // Miniatures
+    document.querySelectorAll('.thumbnail-item').forEach((item, index) => {
+        item.addEventListener('click', function() {
+            loadImage(index);
+        });
+    });
+    
+    // Raccourcis clavier
+    document.addEventListener('keydown', function(e) {
+        switch(e.key) {
+            case 'ArrowLeft': previousImage(); break;
+            case 'ArrowRight': nextImage(); break;
+            case 'r': resetView(); break;
+            case '+': zoomIn(); break;
+            case '-': zoomOut(); break;
+        }
+    });
+    
+    // Mouse events pour le pan
+    const image = document.getElementById('dicomImage');
+    image.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', endDrag);
+    
+    // Wheel pour le zoom
+    image.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        if (e.deltaY < 0) {
+            zoomIn();
+        } else {
+            zoomOut();
+        }
+    });
+}
+
+// Chargement d'image
+function loadImage(index) {
+    currentInstanceIndex = index;
+    const instanceId = instances[index];
+    
+    document.getElementById('loadingSpinner').style.display = 'block';
+    document.getElementById('dicomImage').style.display = 'none';
+    
+    // Mise à jour de la sélection
+    document.querySelectorAll('.thumbnail-item').forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+    });
+    
+    // Chargement de l'image
+    const img = document.getElementById('dicomImage');
+    img.onload = function() {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('dicomImage').style.display = 'block';
+        document.getElementById('imageInfo').style.display = 'block';
+        
+        // Mise à jour des infos
+        document.getElementById('currentImage').textContent = index + 1;
+        document.getElementById('currentImageNumber').textContent = index + 1;
+    };
+    
+    img.src = `/viewer/api/instances/${instanceId}/full_image/`;
+}
+
+// Navigation
+function previousImage() {
+    if (currentInstanceIndex > 0) {
+        loadImage(currentInstanceIndex - 1);
+    }
+}
+
+function nextImage() {
+    if (currentInstanceIndex < instances.length - 1) {
+        loadImage(currentInstanceIndex + 1);
+    }
+}
+
+// Zoom
+function zoomIn() {
+    currentZoom = Math.min(currentZoom * 1.2, 5);
+    applyTransform();
+}
+
+function zoomOut() {
+    currentZoom = Math.max(currentZoom / 1.2, 0.1);
+    applyTransform();
+}
+
+// Pan
+function startDrag(e) {
+    if (currentTool !== 'pan') return;
+    isDragging = true;
+    startX = e.clientX - translateX;
+    startY = e.clientY - translateY;
+    e.preventDefault();
+}
+
+function drag(e) {
+    if (!isDragging) return;
+    translateX = e.clientX - startX;
+    translateY = e.clientY - startY;
+    applyTransform();
+}
+
+function endDrag() {
+    isDragging = false;
+}
+
+// Application des transformations
+function applyTransform() {
+    const img = document.getElementById('dicomImage');
+    img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    document.getElementById('zoomLevel').textContent = Math.round(currentZoom * 100) + '%';
+}
+
+// Reset
+function resetView() {
+    currentZoom = 1;
+    translateX = 0;
+    translateY = 0;
+    applyTransform();
+}
+
+// Téléchargement
+function downloadImage() {
+    const instanceId = instances[currentInstanceIndex];
+    window.open(`/viewer/api/instances/${instanceId}/full_image/`, '_blank');
+}
+</script>
+{% endblock %}

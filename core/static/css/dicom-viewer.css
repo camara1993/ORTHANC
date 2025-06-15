@@ -1,0 +1,370 @@
+/* ===== DICOM Viewer Styles ===== */
+.viewer-container {
+    height: calc(100vh - 80px);
+    background-color: #000;
+    position: relative;
+    display: flex;
+    user-select: none;
+}
+
+/* Sidebar avec effet glassmorphism */
+.viewer-sidebar {
+    width: 350px;
+    background: rgba(26, 26, 26, 0.95);
+    backdrop-filter: blur(10px);
+    color: white;
+    height: 100%;
+    overflow-y: auto;
+    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    transition: transform var(--transition-normal);
+    z-index: 10;
+}
+
+.viewer-sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+.viewer-sidebar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.viewer-sidebar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+}
+
+.viewer-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+/* Toggle sidebar button */
+.sidebar-toggle {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+}
+
+/* Thumbnails avec effet hover */
+.thumbnail-item {
+    margin-bottom: 0.75rem;
+    padding: 0.75rem;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 2px solid transparent;
+    position: relative;
+    overflow: hidden;
+}
+
+.thumbnail-item::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transition: left 0.5s;
+}
+
+.thumbnail-item:hover::before {
+    left: 100%;
+}
+
+.thumbnail-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: translateX(5px);
+}
+
+.thumbnail-item.active {
+    background: var(--gradient-primary);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.thumbnail-image {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* Toolbar avec effet glass */
+.viewer-toolbar {
+    background: rgba(42, 42, 42, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+/* Tool buttons avec animations */
+.tool-btn {
+    background: rgba(58, 58, 58, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.tool-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+}
+
+.tool-btn:hover::before {
+    width: 100px;
+    height: 100px;
+}
+
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 255, 255, 0.1);
+}
+
+.tool-btn.active {
+    background: var(--gradient-primary);
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.tool-btn i {
+    font-size: 1.1rem;
+    margin-right: 0.5rem;
+}
+
+/* Canvas area */
+.viewer-canvas {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+}
+
+#dicomCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    cursor: crosshair;
+}
+
+/* Image info overlay */
+.image-info {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    min-width: 200px;
+}
+
+.image-info-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.image-info-label {
+    color: #888;
+    margin-right: 1rem;
+}
+
+.image-info-value {
+    font-weight: 600;
+    color: #fff;
+}
+
+/* Measurement overlay */
+.measurement-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.measurement-line {
+    stroke: #00ff00;
+    stroke-width: 2;
+    fill: none;
+}
+
+.measurement-text {
+    fill: #00ff00;
+    font-size: 14px;
+    font-weight: 600;
+    text-shadow: 0 0 4px rgba(0,0,0,0.8);
+}
+
+/* Controls avec style moderne */
+.viewer-controls {
+    background: rgba(42, 42, 42, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Zoom controls */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(58, 58, 58, 0.8);
+    padding: 0.5rem;
+    border-radius: var(--radius-md);
+}
+
+.zoom-level {
+    background: rgba(0, 0, 0, 0.5);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    min-width: 80px;
+    text-align: center;
+    font-weight: 600;
+    color: white;
+}
+
+/* Loading animation pour DICOM */
+.dicom-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.dicom-loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+.dicom-loading-text {
+    color: white;
+    font-size: 1rem;
+    margin-top: 1rem;
+}
+
+/* Windowing presets */
+.windowing-presets {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.preset-btn {
+    padding: 0.5rem 1rem;
+    background: rgba(58, 58, 58, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: white;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.preset-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.preset-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Responsive pour le viewer */
+@media (max-width: 768px) {
+    .viewer-sidebar {
+        position: absolute;
+        transform: translateX(-100%);
+        width: 280px;
+        z-index: 100;
+    }
+    
+    .viewer-sidebar.active {
+        transform: translateX(0);
+    }
+    
+    .viewer-toolbar {
+        padding: 0.5rem;
+    }
+    
+    .tool-btn {
+        padding: 0.5rem;
+        font-size: 0.875rem;
+    }
+    
+    .tool-btn i {
+        margin-right: 0;
+    }
+    
+    .tool-btn span {
+        display: none;
+    }
+    
+    .image-info {
+        top: auto;
+        bottom: 5rem;
+        right: 0.5rem;
+        font-size: 0.75rem;
+        padding: 0.75rem;
+    }
+}

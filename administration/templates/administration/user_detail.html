@@ -1,0 +1,158 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ user_detail.get_full_name }} - Détails{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'administration:dashboard' %}">Administration</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'administration:user_management' %}">Utilisateurs</a></li>
+            <li class="breadcrumb-item active">{{ user_detail.get_full_name }}</li>
+        </ol>
+    </nav>
+    
+    <div class="row">
+        <div class="col-lg-4">
+            <!-- Informations utilisateur -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Informations utilisateur</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <div class="avatar-circle mx-auto mb-3" style="width: 100px; height: 100px; font-size: 2.5rem;">
+                            {{ user_detail.get_full_name|slice:":2"|upper }}
+                        </div>
+                        <h4>{{ user_detail.get_full_name }}</h4>
+                        <p class="text-muted">@{{ user_detail.username }}</p>
+                        <span class="badge bg-{{ user_detail.role|role_color }}">{{ user_detail.get_role_display }}</span>
+                        {% if user_detail.is_active %}
+                            <span class="badge bg-success">Actif</span>
+                        {% else %}
+                            <span class="badge bg-danger">Inactif</span>
+                        {% endif %}
+                    </div>
+                    
+                    <hr>
+                    
+                    <dl class="row">
+                        <dt class="col-sm-5">Email :</dt>
+                        <dd class="col-sm-7">{{ user_detail.email }}</dd>
+                        
+                        <dt class="col-sm-5">Téléphone :</dt>
+                        <dd class="col-sm-7">{{ user_detail.phone_number|default:"-" }}</dd>
+                        
+                        <dt class="col-sm-5">Inscrit le :</dt>
+                        <dd class="col-sm-7">{{ user_detail.date_joined|date:"d/m/Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-5">Dernière connexion :</dt>
+                        <dd class="col-sm-7">{{ user_detail.last_login|date:"d/m/Y H:i"|default:"Jamais" }}</dd>
+                    </dl>
+                    
+                    {% if user != user_detail and not user_detail.is_superuser %}
+                        <div class="d-grid">
+                            <button class="btn btn-warning" onclick="toggleUserStatus({{ user_detail.id }})">
+                                {% if user_detail.is_active %}
+                                    <i class="bi bi-lock me-2"></i>Désactiver
+                                {% else %}
+                                    <i class="bi bi-unlock me-2"></i>Activer
+                                {% endif %}
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Informations spécifiques au rôle -->
+            {% if patient_info %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Informations patient</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>ID Patient :</strong> {{ patient_info.patient.patient_id }}</p>
+                        <p><strong>Études :</strong> {{ patient_info.studies_count }}</p>
+                        <p><strong>RDV à venir :</strong> {{ patient_info.appointments_count }}</p>
+                    </div>
+                </div>
+            {% elif doctor_info %}
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Informations médecin</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Patients assignés :</strong> {{ doctor_info.patients_count }}</p>
+                        <p><strong>RDV aujourd'hui :</strong> {{ doctor_info.appointments_today }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-8">
+            <!-- Logs d'accès -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Historique d'accès récent</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date/Heure</th>
+                                    <th>Action</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in access_logs %}
+                                    <tr>
+                                        <td>{{ log.timestamp|date:"d/m/Y H:i:s" }}</td>
+                                        <td>{{ log.get_action_display }}</td>
+                                        <td>{{ log.ip_address }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="3" class="text-center text-muted">Aucun log d'accès</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleUserStatus(userId) {
+    if (!confirm('Êtes-vous sûr de vouloir modifier le statut de cet utilisateur ?')) {
+        return;
+    }
+    
+    fetch(`/administration/users/${userId}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Erreur : ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Erreur réseau : ' + error);
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Étude - {{ study.study_description|default:"Sans titre" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .series-card {
+        border: 1px solid #e0e0e0;
+        border-radius: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    
+    .series-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+        border-color: var(--primary-color);
+    }
+    
+    .series-preview {
+        height: 200px;
+        background-color: #f0f0f0;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .series-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .modality-icon {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+    }
+    
+    .series-info {
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'dicom_viewer:patient_list' %}">Patients</a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'dicom_viewer:patient_detail' patient.id %}">{{ patient.name }}</a>
+            </li>
+            <li class="breadcrumb-item active">{{ study.study_description|default:"Étude" }}</li>
+        </ol>
+    </nav>
+    
+    <!-- Study Header -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3 class="mb-3">
+                <i class="bi bi-folder-fill me-2"></i>
+                {{ study.study_description|default:"Étude sans description" }}
+            </h3>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <p class="mb-2">
+                        <strong>Patient:</strong> {{ patient.name }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Date:</strong> {{ study.study_date|date:"d/m/Y" }}
+                        {% if study.study_time %}à {{ study.study_time|time:"H:i" }}{% endif %}
+                    </p>
+                    {% if study.referring_physician %}
+                        <p class="mb-2">
+                            <strong>Médecin référent:</strong> Dr. {{ study.referring_physician }}
+                        </p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    {% if study.accession_number %}
+                        <p class="mb-2">
+                            <strong>Numéro d'accession:</strong> {{ study.accession_number }}
+                        </p>
+                    {% endif %}
+                    <p class="mb-2">
+                        <strong>UID de l'étude:</strong> 
+                        <small class="text-muted">{{ study.study_instance_uid|truncatechars:30 }}</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Series List -->
+    <h4 class="mb-3">
+        <i class="bi bi-collection-fill me-2"></i>
+        Séries ({{ series_list.count }})
+    </h4>
+    
+    <div class="row g-4">
+        {% for series in series_list %}
+            <div class="col-md-6 col-lg-4">
+                <div class="series-card" onclick="window.location.href='{% url 'dicom_viewer:viewer' series.id %}'">
+                    <div class="series-preview">
+                        {% if series.instances.first %}
+                            <img src="/viewer/api/instances/{{ series.instances.first.id }}/preview/" 
+                                 alt="Aperçu série"
+                                 onerror="this.style.display='none'">
+                        {% endif %}
+                        <span class="modality-icon">{{ series.modality }}</span>
+                    </div>
+                    
+                    <div class="series-info">
+                        <h5 class="mb-2">
+                            {% if series.series_description %}
+                                {{ series.series_description }}
+                            {% else %}
+                                Série {{ series.series_number|default:forloop.counter }}
+                            {% endif %}
+                        </h5>
+                        
+                        {% if series.body_part %}
+                            <p class="text-muted mb-2">
+                                <i class="bi bi-body-text me-1"></i>
+                                {{ series.body_part }}
+                            </p>
+                        {% endif %}
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted">
+                                <i class="bi bi-images me-1"></i>
+                                {{ series.instance_count }} image{{ series.instance_count|pluralize }}
+                            </span>
+                            <button class="btn btn-sm btn-primary">
+                                Visualiser <i class="bi bi-arrow-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Aucune série trouvée pour cette étude.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

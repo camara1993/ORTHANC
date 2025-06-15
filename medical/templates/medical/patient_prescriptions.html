@@ -1,0 +1,84 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Mes ordonnances{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <h2 class="mb-4">
+        <i class="bi bi-file-medical me-2"></i>Mes ordonnances
+    </h2>
+    
+    <div class="row g-4">
+        {% for prescription in prescriptions %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-0">
+                                    Ordonnance du {{ prescription.created_at|date:"d/m/Y" }}
+                                </h5>
+                                <p class="mb-0 text-muted">
+                                    Dr. {{ prescription.doctor.get_full_name }}
+                                    {% if prescription.doctor.specialization %}
+                                        - {{ prescription.doctor.specialization }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div class="col-md-4 text-md-end">
+                                {% if prescription.is_expired %}
+                                    <span class="badge bg-danger">Expirée</span>
+                                {% else %}
+                                    <span class="badge bg-success">Active jusqu'au {{ prescription.valid_until|date:"d/m/Y" }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <h6>Médicaments prescrits:</h6>
+                        <ul>
+                            {% for item in prescription.items.all %}
+                                <li>
+                                    <strong>{{ item.medication_name }}</strong> - {{ item.dosage }}<br>
+                                    <span class="text-muted">
+                                        {{ item.get_frequency_display }} pendant {{ item.duration }}
+                                        (Quantité: {{ item.quantity }})
+                                    </span>
+                                    {% if item.instructions %}
+                                        <br><em class="text-info">{{ item.instructions }}</em>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        
+                        {% if prescription.notes %}
+                            <div class="alert alert-info mt-3">
+                                <strong>Notes du médecin:</strong><br>
+                                {{ prescription.notes }}
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a href="{% url 'medical:prescription_print' prescription.id %}" 
+                           class="btn btn-primary" target="_blank">
+                            <i class="bi bi-printer me-2"></i>Imprimer
+                        </a>
+                        <a href="{% url 'medical:prescription_detail' prescription.id %}" 
+                           class="btn btn-outline-primary">
+                            <i class="bi bi-eye me-2"></i>Voir détails
+                        </a>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <div class="alert alert-info text-center">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Vous n'avez aucune ordonnance.
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

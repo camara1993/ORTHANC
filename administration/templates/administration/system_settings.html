@@ -1,0 +1,214 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Paramètres système - Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-section {
+        background: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+    }
+    
+    .settings-section h4 {
+        color: #333;
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        color: #555;
+    }
+    
+    .form-text {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    
+    .save-indicator {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        padding: 1rem 2rem;
+        background: #28a745;
+        color: white;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        display: none;
+        z-index: 1000;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-0">
+                <i class="bi bi-gear-fill me-2"></i>Paramètres système
+            </h2>
+            <p class="text-muted">Configuration globale de l'application</p>
+        </div>
+    </div>
+    
+    <form method="post" id="settingsForm">
+        {% csrf_token %}
+        
+        <!-- Connexion Orthanc -->
+        <div class="settings-section">
+            <h4><i class="bi bi-server me-2"></i>Connexion Orthanc</h4>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">URL du serveur Orthanc</label>
+                    <input type="url" class="form-control" name="orthanc_url" 
+                           value="{{ settings.orthanc_url }}" required>
+                    <div class="form-text">URL complète incluant le port (ex: http://localhost:8042)</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Nom d'utilisateur</label>
+                    <input type="text" class="form-control" name="orthanc_username" 
+                           value="{{ settings.orthanc_username }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Mot de passe</label>
+                    <input type="password" class="form-control" name="orthanc_password" 
+                           placeholder="••••••••">
+                    <div class="form-text">Laissez vide pour ne pas modifier</div>
+                </div>
+                <div class="col-12">
+                    <button type="button" class="btn btn-secondary" onclick="testConnection()">
+                        <i class="bi bi-wifi me-2"></i>Tester la connexion
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sécurité -->
+        <div class="settings-section">
+            <h4><i class="bi bi-shield-lock me-2"></i>Sécurité</h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Durée de session (minutes)</label>
+                    <input type="number" class="form-control" name="session_timeout" 
+                           value="{{ settings.session_timeout }}" min="5" max="1440" required>
+                    <div class="form-text">Temps avant déconnexion automatique</div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tentatives de connexion max</label>
+                    <input type="number" class="form-control" name="max_login_attempts" 
+                           value="5" min="3" max="10">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Durée de blocage (minutes)</label>
+                    <input type="number" class="form-control" name="lockout_duration" 
+                           value="30" min="5" max="60">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stockage -->
+        <div class="settings-section">
+            <h4><i class="bi bi-hdd me-2"></i>Stockage et Performance</h4>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Taille max upload (MB)</label>
+                    <input type="number" class="form-control" name="max_upload_size" 
+                           value="{{ settings.max_upload_size }}" min="1" max="1000">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Rétention des logs (jours)</label>
+                    <input type="number" class="form-control" name="log_retention_days" 
+                           value="90" min="7" max="365">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Cache timeout (secondes)</label>
+                    <input type="number" class="form-control" name="cache_timeout" 
+                           value="3600" min="60" max="86400">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Notifications -->
+        <div class="settings-section">
+            <h4><i class="bi bi-bell me-2"></i>Notifications</h4>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Email administrateur</label>
+                    <input type="email" class="form-control" name="admin_email" 
+                           placeholder="admin@example.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Seuil d'alerte disque (%)</label>
+                    <input type="number" class="form-control" name="disk_alert_threshold" 
+                           value="85" min="50" max="95">
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="enable_email_notifications" 
+                               id="enableEmailNotifications" checked>
+                        <label class="form-check-label" for="enableEmailNotifications">
+                            Activer les notifications par email
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                <i class="bi bi-x-circle me-2"></i>Annuler
+            </button>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-check-circle me-2"></i>Enregistrer les modifications
+            </button>
+        </div>
+    </form>
+    
+    <div class="save-indicator" id="saveIndicator">
+        <i class="bi bi-check-circle me-2"></i>Paramètres enregistrés avec succès !
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function testConnection() {
+    const url = document.querySelector('input[name="orthanc_url"]').value;
+    const username = document.querySelector('input[name="orthanc_username"]').value;
+    const password = document.querySelector('input[name="orthanc_password"]').value;
+    
+    showSpinner();
+    
+    // Simuler un test de connexion
+    setTimeout(() => {
+        hideSpinner();
+        alert('Test de connexion réussi !');
+    }, 1000);
+}
+
+function resetForm() {
+    if (confirm('Voulez-vous annuler toutes les modifications ?')) {
+        document.getElementById('settingsForm').reset();
+    }
+}
+
+// Afficher l'indicateur de sauvegarde
+{% if messages %}
+    {% for message in messages %}
+        {% if message.tags == 'success' %}
+            document.getElementById('saveIndicator').style.display = 'block';
+            setTimeout(() => {
+                document.getElementById('saveIndicator').style.display = 'none';
+            }, 3000);
+        {% endif %}
+    {% endfor %}
+{% endif %}
+</script>
+{% endblock %}

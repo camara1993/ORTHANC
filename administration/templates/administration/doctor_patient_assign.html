@@ -1,0 +1,209 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Assigner des patients - Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'administration:dashboard' %}">Administration</a></li>
+            <li class="breadcrumb-item active">Assigner des patients</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <!-- Formulaire d'assignation -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-link-45deg me-2"></i>Nouvelle assignation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="doctor_id" class="form-label">Médecin</label>
+                            <select class="form-select" id="doctor_id" name="doctor_id" required>
+                                <option value="">-- Sélectionner un médecin --</option>
+                                {% for doctor in doctors %}
+                                    <option value="{{ doctor.id }}">
+                                        Dr. {{ doctor.get_full_name }}
+                                        {% if doctor.doctor_patients.count > 0 %}
+                                            ({{ doctor.doctor_patients.filter.is_active.count }} patients)
+                                        {% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="patient_id" class="form-label">Patient</label>
+                            <select class="form-select" id="patient_id" name="patient_id" required>
+                                <option value="">-- Sélectionner un patient --</option>
+                                {% for patient in patients %}
+                                    <option value="{{ patient.id }}">
+                                        {{ patient.name }} ({{ patient.patient_id }})
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-circle me-2"></i>Assigner
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Statistiques -->
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h6 class="mb-0">Statistiques</h6>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-7">Total médecins :</dt>
+                        <dd class="col-5 text-end">{{ doctors.count }}</dd>
+                        
+                        <dt class="col-7">Total patients :</dt>
+                        <dd class="col-5 text-end">{{ patients.count }}</dd>
+                        
+                        <dt class="col-7">Relations actives :</dt>
+                        <dd class="col-5 text-end">{{ relations.count }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <!-- Liste des relations existantes -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-people me-2"></i>Relations médecin-patient
+                        </h5>
+                        <input type="search" class="form-control form-control-sm" style="width: 300px;" 
+                               id="searchRelations" placeholder="Rechercher...">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="relationsTable">
+                            <thead>
+                                <tr>
+                                    <th>Médecin</th>
+                                    <th>Patient</th>
+                                    <th>Date d'assignation</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for relation in relations %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-circle me-2">
+                                                    {{ relation.doctor.first_name|slice:":1"|upper }}{{ relation.doctor.last_name|slice:":1"|upper }}
+                                                </div>
+                                                <div>
+                                                    <strong>Dr. {{ relation.doctor.get_full_name }}</strong><br>
+                                                    <small class="text-muted">{{ relation.doctor.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong>{{ relation.patient.name }}</strong><br>
+                                            <small class="text-muted">ID: {{ relation.patient.patient_id }}</small>
+                                        </td>
+                                        <td>
+                                            {{ relation.created_at|date:"d/m/Y" }}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-danger" 
+                                                    onclick="confirmRemoveRelation({{ relation.id }})">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="4" class="text-center text-muted py-4">
+                                            Aucune relation médecin-patient n'existe actuellement
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.avatar-circle {
+    width: 40px;
+    height: 40px;
+    background-color: #6c757d;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Recherche dans le tableau
+document.getElementById('searchRelations').addEventListener('keyup', function(e) {
+    const searchValue = e.target.value.toLowerCase();
+    const table = document.getElementById('relationsTable');
+    const rows = table.getElementsByTagName('tbody')[0].getElementsByTagName('tr');
+    
+    Array.from(rows).forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+});
+
+// Confirmation de suppression
+function confirmRemoveRelation(relationId) {
+    if (confirm('Êtes-vous sûr de vouloir supprimer cette relation médecin-patient ?')) {
+        // TODO: Implémenter la suppression via AJAX
+        alert('Fonctionnalité à implémenter : supprimer la relation ' + relationId);
+    }
+}
+
+// Select2 si disponible
+if (typeof $ !== 'undefined' && $.fn.select2) {
+    $('#doctor_id, #patient_id').select2({
+        theme: 'bootstrap-5',
+        width: '100%'
+    });
+}
+</script>
+{% endblock %}

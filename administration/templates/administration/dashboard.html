@@ -1,0 +1,370 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Dashboard Administration - Orthanc Client{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        background: white;
+        border-radius: 1rem;
+        padding: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    
+    .stat-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-label {
+        color: #6c757d;
+        font-size: 0.875rem;
+        text-transform: uppercase;
+    }
+    
+    .server-status {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .server-online {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .server-offline {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .activity-chart {
+        height: 300px;
+    }
+    
+    .quick-action {
+        padding: 1rem;
+        border-radius: 0.5rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        text-decoration: none;
+        display: block;
+        transition: all 0.3s ease;
+    }
+    
+    .quick-action:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-0">
+                <i class="bi bi-speedometer2 me-2"></i>Dashboard Administration
+            </h2>
+            <p class="text-muted">Vue d'ensemble du système</p>
+        </div>
+    </div>
+    
+    <!-- État du serveur Orthanc -->
+    <div class="server-status {% if orthanc_status.connected %}server-online{% else %}server-offline{% endif %}">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <i class="bi {% if orthanc_status.connected %}bi-check-circle{% else %}bi-x-circle{% endif %} me-2"></i>
+                <strong>Serveur Orthanc:</strong>
+                {% if orthanc_status.connected %}
+                    En ligne - Version {{ orthanc_status.version }}
+                {% else %}
+                    Hors ligne - {{ orthanc_status.error }}
+                {% endif %}
+            </div>
+            <a href="{% url 'administration:orthanc_monitor' %}" class="btn btn-sm btn-light">
+                <i class="bi bi-activity me-1"></i>Monitoring
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistiques principales -->
+    <div class="row g-4 mb-4">
+        <div class="col-md-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-primary bg-gradient text-white">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div class="stat-value">{{ stats.total_users }}</div>
+                <div class="stat-label">Utilisateurs</div>
+                <div class="text-muted small mt-2">
+                    {{ stats.active_users }} actifs ce mois
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-success bg-gradient text-white">
+                    <i class="bi bi-person-badge"></i>
+                </div>
+                <div class="stat-value">{{ stats.total_patients }}</div>
+                <div class="stat-label">Patients</div>
+                <div class="text-muted small mt-2">
+                    Dans la base locale
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-info bg-gradient text-white">
+                    <i class="bi bi-folder-fill"></i>
+                </div>
+                <div class="stat-value">{{ stats.total_studies }}</div>
+                <div class="stat-label">Études</div>
+                <div class="text-muted small mt-2">
+                    {{ stats.total_series }} séries
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-icon bg-warning bg-gradient text-white">
+                    <i class="bi bi-images"></i>
+                </div>
+                <div class="stat-value">{{ stats.total_instances }}</div>
+                <div class="stat-label">Images</div>
+                <div class="text-muted small mt-2">
+                    DICOM stockées
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4">
+        <!-- Graphique d'activité -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="bi bi-graph-up me-2"></i>Activité du système
+                        </h5>
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button type="button" class="btn btn-outline-primary active" onclick="updateChart('7days')">7 jours</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="updateChart('30days')">30 jours</button>
+                            <button type="button" class="btn btn-outline-primary" onclick="updateChart('1year')">1 an</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="activityChart" class="activity-chart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions rapides -->
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-lightning-fill me-2"></i>Actions rapides
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <a href="{% url 'administration:user_management' %}" class="quick-action">
+                            <i class="bi bi-people me-2"></i>Gérer les utilisateurs
+                        </a>
+                        <a href="{% url 'administration:access_logs' %}" class="quick-action">
+                            <i class="bi bi-journal-text me-2"></i>Consulter les logs
+                        </a>
+                        <form method="post" action="{% url 'administration:sync_orthanc' %}" class="d-grid">
+                            {% csrf_token %}
+                            <button type="submit" class="quick-action border-0 text-start">
+                                <i class="bi bi-arrow-clockwise me-2"></i>Synchroniser Orthanc
+                            </button>
+                        </form>
+                        <a href="{% url 'administration:system_settings' %}" class="quick-action">
+                            <i class="bi bi-gear me-2"></i>Paramètres système
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row g-4 mt-4">
+        <!-- Répartition par modalité -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart-fill me-2"></i>Répartition par modalité
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="modalityChart" style="height: 250px;"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Derniers accès -->
+        <div class="col-lg-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-clock-history me-2"></i>Derniers accès
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Utilisateur</th>
+                                    <th>Action</th>
+                                    <th>Patient</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for access in recent_accesses %}
+                                    <tr>
+                                        <td>{{ access.user.username }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ access.action }}</span>
+                                        </td>
+                                        <td>{{ access.patient.name|default:"-" }}</td>
+                                        <td>{{ access.timestamp|date:"d/m H:i" }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="text-center mt-3">
+                        <a href="{% url 'administration:access_logs' %}" class="btn btn-sm btn-primary">
+                            Voir tous les logs
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Graphique d'activité
+const activityCtx = document.getElementById('activityChart').getContext('2d');
+const activityChart = new Chart(activityCtx, {
+    type: 'line',
+    data: {
+        labels: {{ daily_activity|safe }}.map(item => item.day),
+        datasets: [{
+            label: 'Accès',
+            data: {{ daily_activity|safe }}.map(item => item.count),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+
+// Graphique des modalités
+const modalityCtx = document.getElementById('modalityChart').getContext('2d');
+const modalityChart = new Chart(modalityCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ modality_stats|safe }}.map(item => item.modality),
+        datasets: [{
+            data: {{ modality_stats|safe }}.map(item => item.count),
+            backgroundColor: [
+                '#FF6384',
+                '#36A2EB',
+                '#FFCE56',
+                '#4BC0C0',
+                '#9966FF',
+                '#FF9F40'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'right'
+            }
+        }
+    }
+});
+
+// Mise à jour du graphique d'activité
+function updateChart(period) {
+    fetch(`/administration/api/dashboard-stats/?period=${period}`)
+        .then(response => response.json())
+        .then(data => {
+            activityChart.data.labels = data.daily_activity.map(item => item.day);
+            activityChart.data.datasets[0].data = data.daily_activity.map(item => item.count);
+            activityChart.update();
+            
+            // Mettre à jour les boutons
+            document.querySelectorAll('.btn-group button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        });
+}
+
+// Mise à jour automatique du statut serveur
+setInterval(() => {
+    fetch('/administration/api/server-status/')
+        .then(response => response.json())
+        .then(data => {
+            // Mettre à jour l'interface avec les nouvelles données
+            console.log('Server status:', data);
+        });
+}, 30000); // Toutes les 30 secondes
+</script>
+{% endblock %}

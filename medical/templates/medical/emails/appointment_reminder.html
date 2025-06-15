@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rappel Rendez-vous</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #17a2b8; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+        .content { background: #f8f9fa; padding: 20px; border-radius: 0 0 8px 8px; }
+        .appointment-details { background: white; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .status-reminder { border-left: 4px solid #17a2b8; }
+        .btn { display: inline-block; padding: 10px 20px; background: #17a2b8; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }
+        .checklist { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .urgent { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 6px; margin: 15px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🔔 Rappel de Rendez-vous</h2>
+        </div>
+        
+        <div class="content">
+            <p>Bonjour {{ appointment.patient.name }},</p>
+            
+            <p>Nous vous rappelons que vous avez un rendez-vous <strong>demain</strong> avec Dr. {{ appointment.doctor.get_full_name }}.</p>
+            
+            <div class="appointment-details status-reminder">
+                <h3>📅 Votre rendez-vous</h3>
+                <p><strong>Médecin :</strong> Dr. {{ appointment.doctor.get_full_name }}</p>
+                {% if appointment.doctor.specialization %}
+                <p><strong>Spécialisation :</strong> {{ appointment.doctor.specialization }}</p>
+                {% endif %}
+                <p><strong>Date :</strong> {{ appointment.appointment_date|date:"l d F Y" }}</p>
+                <p><strong>Heure :</strong> {{ appointment.appointment_time|time:"H:i" }}</p>
+                <p><strong>Durée :</strong> {{ appointment.duration_minutes }} minutes</p>
+                <p><strong>Type :</strong> {{ appointment.get_appointment_type_display }}</p>
+                <p><strong>Motif :</strong> {{ appointment.reason }}</p>
+            </div>
+            
+            <div class="checklist">
+                <h4>✅ Check-list pour demain</h4>
+                <ul>
+                    <li>□ Carte d'identité</li>
+                    <li>□ Carte vitale et mutuelle</li>
+                    <li>□ Ordonnances en cours</li>
+                    <li>□ Résultats d'examens récents</li>
+                    <li>□ Liste des médicaments actuels</li>
+                    <li>□ Questions à poser au médecin</li>
+                </ul>
+            </div>
+            
+            <div class="urgent">
+                <h4>⏰ Important</h4>
+                <p><strong>Arrivée :</strong> Merci d'arriver 15 minutes avant l'heure de votre rendez-vous.</p>
+                <p><strong>Retard :</strong> En cas de retard supérieur à 15 minutes, le rendez-vous pourra être annulé.</p>
+                <p><strong>Annulation :</strong> Si vous ne pouvez pas venir, prévenez-nous avant 18h aujourd'hui.</p>
+            </div>
+            
+            {% if appointment.appointment_type == 'examination' %}
+            <div style="background: #e2e3e5; border: 1px solid #d6d8db; padding: 15px; border-radius: 6px; margin: 15px 0;">
+                <h4>🩺 Préparation spéciale</h4>
+                <p>Pour votre examen médical, pensez à :</p>
+                <ul>
+                    <li>Porter des vêtements faciles à enlever</li>
+                    <li>Éviter les bijoux volumineux</li>
+                    <li>Apporter vos lunettes si vous en portez</li>
+                </ul>
+            </div>
+            {% endif %}
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="#" class="btn">Confirmer ma présence</a>
+                <a href="#" class="btn" style="background: #dc3545;">Annuler le RDV</a>
+            </div>
+            
+            <p>Si vous avez des questions, n'hésitez pas à nous contacter.</p>
+            
+            <p>À demain !<br>L'équipe médicale</p>
+        </div>
+        
+        <div class="footer">
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html> { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>📅 Nouveau Rendez-vous</h2>
+        </div>
+        
+        <div class="content">
+            <p>Bonjour {{ appointment.patient.name }},</p>
+            
+            <p>Un nouveau rendez-vous a été programmé pour vous :</p>
+            
+            <div class="appointment-details status-pending">
+                <h3>Détails du rendez-vous</h3>
+                <p><strong>Médecin :</strong> Dr. {{ appointment.doctor.get_full_name }}</p>
+                {% if appointment.doctor.specialization %}
+                <p><strong>Spécialisation :</strong> {{ appointment.doctor.specialization }}</p>
+                {% endif %}
+                <p><strong>Date :</strong> {{ appointment.appointment_date|date:"l d F Y" }}</p>
+                <p><strong>Heure :</strong> {{ appointment.appointment_time|time:"H:i" }}</p>
+                <p><strong>Durée :</strong> {{ appointment.duration_minutes }} minutes</p>
+                <p><strong>Type :</strong> {{ appointment.get_appointment_type_display }}</p>
+                <p><strong>Motif :</strong> {{ appointment.reason }}</p>
+                <p><strong>Statut :</strong> <span style="color: #ffc107;">⏳ En attente de confirmation</span></p>
+            </div>
+            
+            <p><strong>⚠️ Important :</strong> Ce rendez-vous est en attente de confirmation par le médecin. Vous recevrez une notification une fois confirmé.</p>
+            
+            {% if appointment.notes %}
+            <div style="background: #e9ecef; padding: 10px; border-radius: 4px; margin: 10px 0;">
+                <strong>Notes :</strong> {{ appointment.notes }}
+            </div>
+            {% endif %}
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="#" class="btn">Voir mes rendez-vous</a>
+            </div>
+            
+            <p>Si vous avez des questions ou souhaitez modifier ce rendez-vous, veuillez contacter notre secrétariat.</p>
+            
+            <p>Cordialement,<br>L'équipe médicale</p>
+        </div>
+        
+        <div class="footer">
+            <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Liste des Patients{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .patient-card {
+            transition: transform 0.2s ease-in-out;
+            border-left: 4px solid #007bff;
+        }
+        .patient-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .patient-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .search-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+        .stats-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .medical-nav {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+        }
+        .nav-item-medical {
+            margin: 0 0.5rem;
+        }
+        .nav-link-medical {
+            color: #495057;
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .nav-link-medical:hover, .nav-link-medical.active {
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <!-- Navigation principale -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        <div class="container">
+            <a class="navbar-brand" href="{% url 'core:home' %}">
+                <i class="fas fa-hospital me-2"></i>Orthanc Client
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="{% url 'dicom_viewer:patient_list' %}">
+                            <i class="fas fa-users me-1"></i>Patients
+                        </a>
+                    </li>
+                    {% if user.role == 'admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'administration:dashboard' %}">
+                            <i class="fas fa-cogs me-1"></i>Administration
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle me-1"></i>{{ user.get_full_name|default:user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">
+                                <i class="fas fa-user me-2"></i>Mon Profil
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'accounts:logout' %}">
+                                <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                            </a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Navigation médicale pour les médecins -->
+        {% if user.role == 'doctor' %}
+        <div class="medical-nav">
+            <div class="d-flex flex-wrap justify-content-center">
+                <div class="nav-item-medical">
+                    <a href="{% url 'dicom_viewer:patient_list' %}" class="nav-link-medical active">
+                        <i class="fas fa-users"></i>
+                        <span>Mes Patients</span>
+                    </a>
+                </div>
+                <div class="nav-item-medical">
+                    <a href="{% url 'medical:appointment_list' %}" class="nav-link-medical">
+                        <i class="fas fa-calendar-alt"></i>
+                        <span>Rendez-vous</span>
+                    </a>
+                </div>
+                <div class="nav-item-medical">
+                    <a href="{% url 'medical:doctor_schedule' %}" class="nav-link-medical">
+                        <i class="fas fa-calendar-week"></i>
+                        <span>Mon Planning</span>
+                    </a>
+                </div>
+                <div class="nav-item-medical">
+                    <a href="{% url 'medical:prescription_list' %}" class="nav-link-medical">
+                        <i class="fas fa-prescription-bottle-alt"></i>
+                        <span>Prescriptions</span>
+                    </a>
+                </div>
+                <div class="nav-item-medical">
+                    <a href="{% url 'medical:appointment_create' %}?patient={{ patient.id }}" 
+                    class="btn btn-success btn-sm" title="Créer un rendez-vous">
+                        <i class="fas fa-calendar-plus me-1"></i>RDV
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Section de recherche et statistiques -->
+        <div class="search-section">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h2 class="mb-3">
+                        <i class="fas fa-users me-2"></i>
+                        {% if user.role == 'doctor' %}
+                            Mes Patients
+                        {% else %}
+                            Gestion des Patients
+                        {% endif %}
+                    </h2>
+                    <form method="get" class="d-flex">
+                        <input type="text" name="search" class="form-control me-2" 
+                               placeholder="Rechercher par nom ou ID patient..." 
+                               value="{{ search_query }}" style="border: none;">
+                        <button type="submit" class="btn btn-light">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-4 text-end">
+                    {% if user.role == 'admin' or user.role == 'doctor' %}
+                    <a href="{% url 'administration:patient_create' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-user-plus me-2"></i>Nouveau Patient
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistiques rapides pour les médecins -->
+        {% if user.role == 'doctor' %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="h4 text-primary mb-1">{{ total_patients }}</div>
+                    <small class="text-muted">Patients Total</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="h4 text-success mb-1">8</div>
+                    <small class="text-muted">RDV Aujourd'hui</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="h4 text-warning mb-1">5</div>
+                    <small class="text-muted">En Attente</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-card">
+                    <div class="h4 text-info mb-1">23</div>
+                    <small class="text-muted">Cette Semaine</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Actions rapides pour les médecins -->
+        {% if user.role == 'doctor' %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bolt me-2"></i>Actions Rapides
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <a href="{% url 'medical:appointment_create' %}" class="btn btn-primary w-100 mb-2">
+                                    <i class="fas fa-calendar-plus d-block mb-1"></i>
+                                    <small>Nouveau RDV</small>
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{% url 'medical:appointment_list' %}?status=pending" class="btn btn-warning w-100 mb-2">
+                                    <i class="fas fa-clock d-block mb-1"></i>
+                                    <small>RDV en attente</small>
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{% url 'medical:appointment_list' %}?date=today" class="btn btn-success w-100 mb-2">
+                                    <i class="fas fa-calendar-day d-block mb-1"></i>
+                                    <small>RDV Aujourd'hui</small>
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{% url 'medical:doctor_schedule' %}" class="btn btn-info w-100 mb-2">
+                                    <i class="fas fa-calendar-week d-block mb-1"></i>
+                                    <small>Mon Planning</small>
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{% url 'medical:prescription_list' %}" class="btn btn-secondary w-100 mb-2">
+                                    <i class="fas fa-prescription-bottle-alt d-block mb-1"></i>
+                                    <small>Prescriptions</small>
+                                </a>
+                            </div>
+                            <div class="col-md-2">
+                                <a href="{% url 'administration:patient_create' %}" class="btn btn-outline-primary w-100 mb-2">
+                                    <i class="fas fa-user-plus d-block mb-1"></i>
+                                    <small>Nouveau Patient</small>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- En-tête de la liste -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0">
+                <i class="fas fa-list me-2"></i>
+                Liste des Patients ({{ total_patients }})
+            </h4>
+            <div>
+                {% if user.role == 'admin' or user.role == 'doctor' %}
+                <button class="btn btn-outline-primary" onclick="window.location.reload()">
+                    <i class="fas fa-sync-alt me-1"></i>Synchroniser
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Liste des patients -->
+        <div class="row">
+            {% for patient in page_obj %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card patient-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="patient-avatar me-3">
+                                {{ patient.name|slice:":2"|upper }}
+                            </div>
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">{{ patient.name }}</h5>
+                                <p class="text-muted mb-0">ID: {{ patient.patient_id }}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="patient-info mb-3">
+                            {% if patient.birth_date %}
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas fa-birthday-cake text-muted me-2"></i>
+                                <small>{{ patient.birth_date|date:"d/m/Y" }}</small>
+                                {% if patient.get_age %}
+                                <small class="ms-1">({{ patient.get_age }} ans)</small>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            {% if patient.sex %}
+                            <div class="d-flex align-items-center mb-1">
+                                <i class="fas fa-{% if patient.sex == 'M' %}mars{% else %}venus{% endif %} text-muted me-2"></i>
+                                <small>{{ patient.sex|default:"Non spécifié" }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="border-end">
+                                    <div class="h6 text-primary mb-0">{{ patient.study_count|default:0 }}</div>
+                                    <small class="text-muted">Études</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="h6 text-success mb-0">{{ patient.total_instances|default:0 }}</div>
+                                <small class="text-muted">Images</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'dicom_viewer:patient_detail' patient.id %}" 
+                               class="btn btn-outline-primary btn-sm flex-grow-1">
+                                <i class="fas fa-eye me-1"></i>Voir
+                            </a>
+                            {% if user.role == 'doctor' %}
+                            <a href="{% url 'medical:appointment_create' %}?patient={{ patient.id }}" 
+                               class="btn btn-success btn-sm">
+                                <i class="fas fa-calendar-plus me-1"></i>RDV
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">Aucun patient trouvé</h5>
+                    {% if search_query %}
+                    <p class="text-muted">Aucun résultat pour "{{ search_query }}"</p>
+                    <a href="{% url 'dicom_viewer:patient_list' %}" class="btn btn-outline-primary">
+                        Voir tous les patients
+                    </a>
+                    {% else %}
+                    <p class="text-muted">Commencez par ajouter des patients au système</p>
+                    {% if user.role == 'admin' or user.role == 'doctor' %}
+                    <a href="{% url 'administration:patient_create' %}" class="btn btn-primary">
+                        <i class="fas fa-user-plus me-1"></i>Ajouter un patient
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Navigation des pages" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search_query %}&search={{ search_query }}{% endif %}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Mettre à jour la navigation active
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link-medical');
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Animation pour les cartes patients
+        document.querySelectorAll('.patient-card').forEach(card => {
+            card.addEventListener('mouseenter', function() {
+                this.style.borderLeftColor = '#28a745';
+            });
+            
+            card.addEventListener('mouseleave', function() {
+                this.style.borderLeftColor = '#007bff';
+            });
+        });
+    </script>
+</body>
+</html>

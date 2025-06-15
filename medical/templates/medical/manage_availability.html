@@ -1,0 +1,358 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Gérer mes disponibilités{% endblock %}
+
+{% block extra_css %}
+<style>
+    .availability-grid {
+        display: grid;
+        grid-template-columns: 150px repeat(7, 1fr);
+        gap: 10px;
+        margin-top: 20px;
+    }
+    
+    .time-slot {
+        background: #f8f9fa;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .time-slot.active {
+        background: #28a745;
+        color: white;
+        border-color: #28a745;
+    }
+    
+    .time-slot:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .day-header {
+        font-weight: bold;
+        text-align: center;
+        padding: 10px;
+        background: #e9ecef;
+        border-radius: 8px;
+    }
+    
+    .time-header {
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #495057;
+    }
+    
+    .add-slot-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #007bff;
+        color: white;
+        border: none;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    
+    .remove-slot-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #dc3545;
+        color: white;
+        border: none;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="bi bi-clock me-2"></i>Gérer mes disponibilités
+        </h2>
+        <button class="btn btn-primary" onclick="saveAvailabilities()">
+            <i class="bi bi-check-circle me-2"></i>Enregistrer
+        </button>
+    </div>
+    
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted mb-4">
+                Cliquez sur les créneaux pour activer/désactiver vos disponibilités. 
+                Les patients pourront réserver des rendez-vous uniquement sur les créneaux actifs.
+            </p>
+            
+            <div class="availability-grid" id="availabilityGrid">
+                <!-- Header row -->
+                <div></div> <!-- Empty corner -->
+                <div class="day-header">Lundi</div>
+                <div class="day-header">Mardi</div>
+                <div class="day-header">Mercredi</div>
+                <div class="day-header">Jeudi</div>
+                <div class="day-header">Vendredi</div>
+                <div class="day-header">Samedi</div>
+                <div class="day-header">Dimanche</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal pour ajouter un créneau -->
+    <div class="modal fade" id="addSlotModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ajouter un créneau</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addSlotForm">
+                        <div class="mb-3">
+                            <label class="form-label">Jour</label>
+                            <select class="form-select" id="slotDay" required>
+                                <option value="0">Lundi</option>
+                                <option value="1">Mardi</option>
+                                <option value="2">Mercredi</option>
+                                <option value="3">Jeudi</option>
+                                <option value="4">Vendredi</option>
+                                <option value="5">Samedi</option>
+                                <option value="6">Dimanche</option>
+                            </select>
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label">Heure début</label>
+                                <input type="time" class="form-control" id="slotStartTime" required>
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label">Heure fin</label>
+                                <input type="time" class="form-control" id="slotEndTime" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="button" class="btn btn-primary" onclick="addNewSlot()">Ajouter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Données des disponibilités existantes
+let availabilities = {{ availabilities|safe|default:"[]" }};
+let timeSlots = {};
+
+// Initialiser la grille
+document.addEventListener('DOMContentLoaded', function() {
+    initializeGrid();
+});
+
+function initializeGrid() {
+    const grid = document.getElementById('availabilityGrid');
+    
+    // Créer les créneaux horaires standards (8h-20h par tranches de 30 min)
+    const times = [];
+    for (let hour = 8; hour < 20; hour++) {
+        times.push(`${hour.toString().padStart(2, '0')}:00`);
+        times.push(`${hour.toString().padStart(2, '0')}:30`);
+    }
+    
+    // Créer la grille
+    times.forEach(time => {
+        // Header de temps
+        const timeHeader = document.createElement('div');
+        timeHeader.className = 'time-header';
+        timeHeader.textContent = time;
+        grid.appendChild(timeHeader);
+        
+        // Créneaux pour chaque jour
+        for (let day = 0; day < 7; day++) {
+            const slot = document.createElement('div');
+            slot.className = 'time-slot';
+            slot.dataset.day = day;
+            slot.dataset.time = time;
+            slot.id = `slot-${day}-${time.replace(':', '')}`;
+            
+            // Vérifier si ce créneau est actif
+            const isActive = checkIfSlotActive(day, time);
+            if (isActive) {
+                slot.classList.add('active');
+            }
+            
+            slot.onclick = () => toggleSlot(day, time);
+            grid.appendChild(slot);
+        }
+    });
+    
+    // Ajouter un bouton pour ajouter des créneaux personnalisés
+    const addButton = document.createElement('button');
+    addButton.className = 'btn btn-sm btn-success mt-3';
+    addButton.innerHTML = '<i class="bi bi-plus-circle me-2"></i>Ajouter un créneau personnalisé';
+    addButton.onclick = () => $('#addSlotModal').modal('show');
+    grid.parentElement.appendChild(addButton);
+}
+
+function checkIfSlotActive(day, time) {
+    // Convertir les disponibilités existantes
+    {% for availability in availabilities %}
+        if ({{ availability.weekday }} === day) {
+            const start = '{{ availability.start_time|time:"H:i" }}';
+            const end = '{{ availability.end_time|time:"H:i" }}';
+            if (time >= start && time < end) {
+                return true;
+            }
+        }
+    {% endfor %}
+    return false;
+}
+
+function toggleSlot(day, time) {
+    const slot = document.getElementById(`slot-${day}-${time.replace(':', '')}`);
+    slot.classList.toggle('active');
+    
+    // Mettre à jour les données
+    const key = `${day}-${time}`;
+    if (!timeSlots[key]) {
+        timeSlots[key] = {
+            day: day,
+            time: time,
+            active: slot.classList.contains('active')
+        };
+    } else {
+        timeSlots[key].active = slot.classList.contains('active');
+    }
+}
+
+function addNewSlot() {
+    const day = document.getElementById('slotDay').value;
+    const startTime = document.getElementById('slotStartTime').value;
+    const endTime = document.getElementById('slotEndTime').value;
+    
+    // Validation
+    if (startTime >= endTime) {
+        alert('L\'heure de fin doit être après l\'heure de début');
+        return;
+    }
+    
+    // Ajouter le créneau aux données
+    const newSlot = {
+        weekday: parseInt(day),
+        start_time: startTime,
+        end_time: endTime,
+        is_active: true
+    };
+    
+    availabilities.push(newSlot);
+    
+    // Fermer le modal et rafraîchir
+    $('#addSlotModal').modal('hide');
+    location.reload(); // Pour simplifier, on recharge la page
+}
+
+function saveAvailabilities() {
+    // Préparer les données pour l'envoi
+    const data = [];
+    
+    // Regrouper les créneaux actifs par jour et créer des plages horaires
+    for (let day = 0; day < 7; day++) {
+        const daySlots = [];
+        
+        // Récupérer tous les créneaux actifs de ce jour
+        document.querySelectorAll(`.time-slot.active[data-day="${day}"]`).forEach(slot => {
+            daySlots.push(slot.dataset.time);
+        });
+        
+        // Trier les créneaux
+        daySlots.sort();
+        
+        // Créer des plages continues
+        if (daySlots.length > 0) {
+            let startTime = daySlots[0];
+            let lastTime = daySlots[0];
+            
+            for (let i = 1; i <= daySlots.length; i++) {
+                const currentTime = daySlots[i];
+                
+                // Vérifier si le créneau est consécutif
+                if (i === daySlots.length || !isConsecutive(lastTime, currentTime)) {
+                    // Fin de la plage
+                    data.push({
+                        weekday: day,
+                        start_time: startTime,
+                        end_time: addMinutes(lastTime, 30),
+                        is_active: true
+                    });
+                    
+                    if (i < daySlots.length) {
+                        startTime = currentTime;
+                    }
+                }
+                
+                if (i < daySlots.length) {
+                    lastTime = currentTime;
+                }
+            }
+        }
+    }
+    
+    // Envoyer au serveur
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.innerHTML = `
+        {% csrf_token %}
+        <input type="hidden" name="availabilities" value='${JSON.stringify(data)}'>
+    `;
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function isConsecutive(time1, time2) {
+    // Vérifier si time2 est 30 minutes après time1
+    const [h1, m1] = time1.split(':').map(Number);
+    const [h2, m2] = time2.split(':').map(Number);
+    
+    const minutes1 = h1 * 60 + m1;
+    const minutes2 = h2 * 60 + m2;
+    
+    return minutes2 - minutes1 === 30;
+}
+
+function addMinutes(time, minutes) {
+    const [h, m] = time.split(':').map(Number);
+    const totalMinutes = h * 60 + m + minutes;
+    const newH = Math.floor(totalMinutes / 60);
+    const newM = totalMinutes % 60;
+    return `${newH.toString().padStart(2, '0')}:${newM.toString().padStart(2, '0')}`;
+}
+</script>
+{% endblock %}

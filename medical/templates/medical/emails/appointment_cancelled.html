@@ -1,0 +1,381 @@
+<!-- templates/medical/emails/appointment_cancelled.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rendez-vous Annulé</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+            background-color: #f4f4f4; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 0 auto; 
+            padding: 20px; 
+            background-color: #ffffff;
+        }
+        .header { 
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); 
+            color: white; 
+            padding: 30px 20px; 
+            text-align: center; 
+            border-radius: 8px 8px 0 0; 
+            position: relative;
+        }
+        .header::before {
+            content: '❌';
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 10px;
+        }
+        .content { 
+            background: #f8f9fa; 
+            padding: 30px 20px; 
+            border-radius: 0 0 8px 8px; 
+        }
+        .appointment-details { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-cancelled { 
+            border-left: 5px solid #dc3545; 
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #666;
+            font-size: 14px;
+        }
+        .detail-value {
+            color: #333;
+            font-size: 14px;
+        }
+        .status-badge {
+            background: #dc3545;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn { 
+            display: inline-block; 
+            padding: 12px 24px; 
+            background: #007bff; 
+            color: white; 
+            text-decoration: none; 
+            border-radius: 6px; 
+            margin: 8px; 
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn-success {
+            background: #28a745;
+        }
+        .btn-success:hover {
+            background: #1e7e34;
+        }
+        .btn-secondary {
+            background: #6c757d;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+        .next-steps { 
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%); 
+            border: 1px solid #bee5eb; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+        }
+        .next-steps h4 {
+            color: #0c5460;
+            margin-top: 0;
+        }
+        .next-steps ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .next-steps li {
+            margin: 8px 0;
+            color: #0c5460;
+        }
+        .apology-box {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .apology-box h4 {
+            color: #856404;
+            margin-top: 0;
+        }
+        .contact-info {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .contact-info h5 {
+            margin-top: 0;
+            color: #495057;
+        }
+        .contact-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+            color: #495057;
+        }
+        .contact-icon {
+            width: 20px;
+            margin-right: 10px;
+            text-align: center;
+        }
+        .button-group {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .footer { 
+            text-align: center; 
+            margin-top: 30px; 
+            color: #666; 
+            font-size: 12px; 
+            padding: 20px 0;
+            border-top: 1px solid #dee2e6;
+        }
+        .company-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+            text-align: center;
+            color: #666;
+        }
+        .reason-box {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .reason-box h5 {
+            color: #721c24;
+            margin-top: 0;
+        }
+        
+        /* Responsive design */
+        @media (max-width: 600px) {
+            .container {
+                padding: 10px;
+            }
+            .header {
+                padding: 20px 15px;
+            }
+            .content {
+                padding: 20px 15px;
+            }
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .detail-label {
+                margin-bottom: 4px;
+            }
+            .btn {
+                display: block;
+                margin: 8px 0;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Rendez-vous Annulé</h2>
+            <p style="margin: 0; opacity: 0.9;">Nous vous informons de l'annulation de votre consultation</p>
+        </div>
+        
+        <div class="content">
+            <p>Bonjour <strong>{{ appointment.patient.name }}</strong>,</p>
+            
+            <p>Nous sommes désolés de vous informer que votre rendez-vous avec <strong>Dr. {{ appointment.doctor.get_full_name }}</strong> a été <strong style="color: #dc3545;">annulé</strong>.</p>
+            
+            <div class="appointment-details status-cancelled">
+                <h3 style="margin-top: 0; color: #dc3545; display: flex; align-items: center;">
+                    <span style="margin-right: 10px;">📅</span>
+                    Rendez-vous annulé
+                </h3>
+                
+                <div class="detail-row">
+                    <span class="detail-label">👨‍⚕️ Médecin :</span>
+                    <span class="detail-value">Dr. {{ appointment.doctor.get_full_name }}</span>
+                </div>
+                
+                {% if appointment.doctor.specialization %}
+                <div class="detail-row">
+                    <span class="detail-label">🏥 Spécialisation :</span>
+                    <span class="detail-value">{{ appointment.doctor.specialization }}</span>
+                </div>
+                {% endif %}
+                
+                <div class="detail-row">
+                    <span class="detail-label">📅 Date prévue :</span>
+                    <span class="detail-value">{{ appointment.appointment_date|date:"l d F Y" }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🕐 Heure prévue :</span>
+                    <span class="detail-value">{{ appointment.appointment_time|time:"H:i" }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">⏱️ Durée :</span>
+                    <span class="detail-value">{{ appointment.duration_minutes }} minutes</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🏷️ Type :</span>
+                    <span class="detail-value">{{ appointment.get_appointment_type_display }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">🩺 Motif :</span>
+                    <span class="detail-value">{{ appointment.reason }}</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">📊 Statut :</span>
+                    <span class="status-badge">❌ Annulé</span>
+                </div>
+            </div>
+            
+            {% if appointment.notes %}
+            <div class="reason-box">
+                <h5>📝 Motif de l'annulation</h5>
+                <p style="margin: 0; color: #721c24;">{{ appointment.notes }}</p>
+            </div>
+            {% endif %}
+            
+            <div class="apology-box">
+                <h4>🙏 Nos excuses</h4>
+                <p style="margin: 0; color: #856404;">
+                    Nous nous excusons sincèrement pour la gêne occasionnée par cette annulation. 
+                    Nous comprenons que cela peut perturber votre emploi du temps et nous en sommes désolés.
+                </p>
+            </div>
+            
+            <div class="next-steps">
+                <h4>🔄 Reprogrammer votre rendez-vous</h4>
+                <p style="margin-top: 0;">Pour reprogrammer votre consultation, vous pouvez :</p>
+                <ul>
+                    <li><strong>En ligne :</strong> Utiliser notre plateforme de prise de rendez-vous</li>
+                    <li><strong>Par téléphone :</strong> Appeler notre secrétariat aux heures d'ouverture</li>
+                    <li><strong>Sur place :</strong> Vous présenter directement à l'accueil</li>
+                    <li><strong>Par email :</strong> Nous envoyer votre demande via le formulaire de contact</li>
+                </ul>
+                <p style="margin-bottom: 0; font-weight: bold; color: #0c5460;">
+                    💡 <em>Conseil :</em> Pour éviter les délais, nous vous recommandons de reprendre rendez-vous dès que possible.
+                </p>
+            </div>
+            
+            <div class="contact-info">
+                <h5>📞 Informations de contact</h5>
+                <div class="contact-item">
+                    <span class="contact-icon">📱</span>
+                    <span><strong>Téléphone :</strong> 01 23 45 67 89</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-icon">📧</span>
+                    <span><strong>Email :</strong> secretariat@cabinet-medical.fr</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-icon">🕐</span>
+                    <span><strong>Horaires :</strong> Lundi - Vendredi : 8h30 - 18h30</span>
+                </div>
+                <div class="contact-item">
+                    <span class="contact-icon">📍</span>
+                    <span><strong>Adresse :</strong> 123 Rue de la Santé, 75001 Paris</span>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <a href="#" class="btn btn-success">
+                    📅 Prendre un nouveau RDV
+                </a>
+                <a href="#" class="btn btn-secondary">
+                    📞 Nous contacter
+                </a>
+                <a href="#" class="btn">
+                    👁️ Voir mes rendez-vous
+                </a>
+            </div>
+            
+            {% if appointment.appointment_date > today %}
+            <div style="background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 6px; margin: 20px 0;">
+                <h5 style="color: #155724; margin-top: 0;">⚡ Rendez-vous prioritaire</h5>
+                <p style="margin: 0; color: #155724;">
+                    Étant donné que votre rendez-vous était prévu prochainement, nous vous proposons un créneau prioritaire. 
+                    Contactez-nous rapidement pour bénéficier de cette priorité.
+                </p>
+            </div>
+            {% endif %}
+            
+            <p>Nous restons à votre disposition pour toute question et espérons vous revoir très bientôt dans notre cabinet.</p>
+            
+            <p style="margin-bottom: 0;">
+                Avec nos excuses renouvelées,<br>
+                <strong>L'équipe médicale</strong><br>
+                <em>Cabinet Médical - Dr. {{ appointment.doctor.get_full_name }}</em>
+            </p>
+        </div>
+        
+        <div class="company-info">
+            <p style="margin: 0; font-weight: bold;">Cabinet Médical Pluridisciplinaire</p>
+            <p style="margin: 5px 0 0 0;">
+                123 Rue de la Santé, 75001 Paris | 
+                Tél: 01 23 45 67 89 | 
+                Email: contact@cabinet-medical.fr
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p style="margin: 0;">
+                Cet email a été envoyé automatiquement depuis notre système de gestion des rendez-vous.
+            </p>
+            <p style="margin: 5px 0 0 0;">
+                Merci de ne pas répondre directement à cet email. 
+                Pour toute question, utilisez nos moyens de contact habituels.
+            </p>
+            <p style="margin: 10px 0 0 0; font-size: 11px; color: #999;">
+                © {{ "now"|date:"Y" }} Cabinet Médical. Tous droits réservés. | 
+                <a href="#" style="color: #999;">Politique de confidentialité</a> | 
+                <a href="#" style="color: #999;">Se désabonner</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

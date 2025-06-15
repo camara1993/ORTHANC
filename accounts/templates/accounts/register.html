@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Inscription - Orthanc Client{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card fade-in">
+        <div class="auth-header">
+            <i class="bi bi-person-plus fs-1 mb-3"></i>
+            <h3 class="mb-0">Inscription</h3>
+            <p class="mb-0 mt-2 opacity-75">Créez votre compte</p>
+        </div>
+        
+        <div class="auth-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.first_name.label }}</label>
+                        {{ form.first_name }}
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">{{ form.last_name.label }}</label>
+                        {{ form.last_name }}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.username.label }}</label>
+                    {{ form.username }}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.email.label }}</label>
+                    {{ form.email }}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.role.label }}</label>
+                    {{ form.role }}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">{{ form.password1.label }}</label>
+                    {{ form.password1 }}
+                </div>
+                
+                <div class="mb-4">
+                    <label class="form-label">{{ form.password2.label }}</label>
+                    {{ form.password2 }}
+                </div>
+                
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        Veuillez corriger les erreurs ci-dessus.
+                    </div>
+                {% endif %}
+                
+                <button type="submit" class="btn btn-primary w-100 mb-3">
+                    <i class="bi bi-check-circle me-2"></i>S'inscrire
+                </button>
+                
+                <div class="text-center">
+                    <p class="mb-0">Déjà inscrit ?</p>
+                    <a href="{% url 'accounts:login' %}" class="text-decoration-none">Se connecter</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
