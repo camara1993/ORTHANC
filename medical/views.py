@@ -20,15 +20,36 @@ from django.views.decorators.cache import cache_page
 from .utils import AppointmentManager
 import uuid
 
-def log_access(user, action, details=None, patient=None):
-    """Helper function to log user actions"""
-    AccessLog.objects.create(
-        user=user,
-        action=action,
-        details=details,
-        patient=patient,
-        ip_address='127.0.0.1'  # You can get real IP from request.META
-    )
+def log_access(user, action, details=None, patient=None, study=None):
+    """Helper function to log user actions - VERSION CORRIGÉE"""
+    try:
+        # Créer le log avec les champs requis seulement
+        log_data = {
+            'user': user,
+            'action': action,
+            'ip_address': '127.0.0.1'  # IP par défaut, peut être récupérée depuis request.META
+        }
+        
+        # Ajouter les champs optionnels seulement s'ils sont fournis
+        if patient:
+            log_data['patient'] = patient
+        if study:
+            log_data['study'] = study
+            
+        # Créer le log
+        access_log = AccessLog.objects.create(**log_data)
+        
+        # Si details est fourni, on peut l'ajouter comme attribut ou dans un champ texte
+        # Vérifier si le modèle AccessLog a un champ 'details'
+        if details and hasattr(access_log, 'details'):
+            access_log.details = details
+            access_log.save()
+            
+        return access_log
+    except Exception as e:
+        print(f"Erreur lors du log d'accès: {e}")
+        return None
+
 
 @login_required
 def prescription_list(request):
@@ -170,7 +191,7 @@ def appointment_detail(request, appointment_id):
 @login_required
 @require_http_methods(["POST"])
 def update_appointment_status(request, appointment_id):
-    """Mettre à jour le statut d'un rendez-vous (AJAX)"""
+    """Mettre à jour le statut d'un rendez-vous (AJAX) - VERSION CORRIGÉE"""
     try:
         appointment = get_object_or_404(Appointment, pk=appointment_id)
         
@@ -181,7 +202,15 @@ def update_appointment_status(request, appointment_id):
                 'error': 'Seul le médecin peut modifier le statut du rendez-vous'
             }, status=403)
         
-        data = json.loads(request.body)
+        # Récupérer les données JSON du body
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Données JSON invalides'
+            }, status=400)
+        
         new_status = data.get('status')
         notes = data.get('notes', '')
         
@@ -200,17 +229,30 @@ def update_appointment_status(request, appointment_id):
             appointment.notes = notes
         appointment.save()
         
-        # Logger l'action
-        log_access(
-            request.user,
-            'update_appointment_status',
-            details=f"Rendez-vous {appointment.id} : {old_status} → {new_status}",
-            patient=appointment.patient
-        )
+        # Logger l'action (version simplifiée)
+        try:
+            log_access(
+                request.user,
+                'update_appointment_status',
+                patient=appointment.patient
+            )
+        except Exception as log_error:
+            print(f"Erreur logging: {log_error}")
+            # Continue même si le log échoue
+        
+        # Envoyer notification si nécessaire
+        try:
+            if new_status == 'confirmed':
+                appointment.send_notification('confirmed')
+            elif new_status == 'cancelled':
+                appointment.send_notification('cancelled')
+        except Exception as notif_error:
+            print(f"Erreur notification: {notif_error}")
+            # Continue même si la notification échoue
         
         # Message de succès
         status_messages = {
-            'confirmed': 'Rendez-vous confirmé',
+            'confirmed': 'Rendez-vous confirmé avec succès',
             'cancelled': 'Rendez-vous annulé',
             'completed': 'Rendez-vous marqué comme terminé',
             'no_show': 'Patient marqué comme absent',
@@ -225,17 +267,14 @@ def update_appointment_status(request, appointment_id):
             'new_status': new_status,
             'status_display': appointment.get_status_display()
         })
-        
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'error': 'Données JSON invalides'
-        }, status=400)
+
     except Exception as e:
+        print(f"Erreur générale: {e}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': f'Erreur interne: {str(e)}'
         }, status=500)
+
 
 @login_required
 def doctor_schedule(request):

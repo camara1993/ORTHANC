@@ -96,6 +96,9 @@ class AccessLog(models.Model):
     action = models.CharField(max_length=50)
     timestamp = models.DateTimeField(auto_now_add=True)
     ip_address = models.GenericIPAddressField()
+
+    # Si vous voulez ajouter un champ details, ajoutez :
+    details = models.TextField(blank=True, null=True)
     
     class Meta:
         db_table = 'access_logs'

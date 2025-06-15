@@ -276,7 +276,14 @@
             if (!confirm('Êtes-vous sûr de vouloir modifier le statut de ce rendez-vous ?')) {
                 return;
             }
-
+        
+            // Afficher un indicateur de chargement
+            const buttons = document.querySelectorAll('button[onclick*="updateStatus"]');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Traitement...';
+            });
+        
             fetch(`/medical/appointments/{{ appointment.id }}/update-status/`, {
                 method: 'POST',
                 headers: {
@@ -287,22 +294,45 @@
                     status: newStatus
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     showToast(data.message, true);
+                    // Recharger la page après un délai
                     setTimeout(() => {
-                        location.reload();
-                    }, 1000);
+                        window.location.reload();
+                    }, 1500);
                 } else {
                     showToast(data.error, false);
+                    // Réactiver les boutons en cas d'erreur
+                    buttons.forEach(btn => {
+                        btn.disabled = false;
+                        btn.innerHTML = btn.getAttribute('data-original-text') || 'Action';
+                    });
                 }
             })
             .catch(error => {
                 console.error('Erreur:', error);
-                showToast('Erreur lors de la mise à jour', false);
+                showToast('Erreur de connexion au serveur', false);
+                // Réactiver les boutons en cas d'erreur
+                buttons.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerHTML = btn.getAttribute('data-original-text') || 'Action';
+                });
             });
         }
+        // Sauvegarder le texte original des boutons au chargement
+        document.addEventListener('DOMContentLoaded', function() {
+            const buttons = document.querySelectorAll('button[onclick*="updateStatus"]');
+            buttons.forEach(btn => {
+                btn.setAttribute('data-original-text', btn.innerHTML);
+            });
+        });
 
         function updateNotes() {
             const notes = document.getElementById('appointment-notes').value;
